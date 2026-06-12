@@ -136,10 +136,12 @@ export async function logout(refreshToken: string): Promise<void> {
   });
 }
 
-/** Revoga TODOS os tokens de um usuário (ex.: troca de senha, desativação) */
+/** Revoga TODOS os tokens de um usuário (ex.: troca de senha, desativação).
+ *  Deleta os registros em vez de apenas marcar revokedAt, para que
+ *  refresh() encontre null no findUnique e retorne 401 imediatamente,
+ *  sem cair na janela de tolerância de 60s (que existe só para rotação). */
 export async function revogarTodosTokens(usuarioId: string): Promise<void> {
-  await prisma.refreshToken.updateMany({
-    where: { usuarioId, revokedAt: null },
-    data: { revokedAt: new Date() },
+  await prisma.refreshToken.deleteMany({
+    where: { usuarioId },
   });
 }
