@@ -23,5 +23,4 @@ coverage
 
 # Empacotamento
 *.tar.gz
-package-lock.json
 tool-results/
