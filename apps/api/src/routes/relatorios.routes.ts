@@ -238,7 +238,7 @@ relatoriosRouter.get('/historico-produto/:produtoId', exigirPermissao(PERMISSOES
       _sum: { valorRecebidoPago: true },
     });
     const mapaTotais = Object.fromEntries(
-      totais.map((t) => [t.locacaoId, t._sum.valorRecebidoPago?.toFixed(2) ?? '0.00'])
+      totais.map((t) => [t.locacaoId, t._sum?.valorRecebidoPago?.toFixed(2) ?? '0.00'])
     );
     res.json(json(locacoes.map((l) => ({ ...l, totalRecebido: mapaTotais[l.id] ?? '0.00' }))));
   } catch (e) { next(e); }

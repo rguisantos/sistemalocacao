@@ -149,7 +149,7 @@ export async function processarWebhookPagamento(paymentId: string) {
       acao: 'pix_confirmado',
       entidade: 'Cobranca',
       entidadeId: cobrancaId,
-      dadosNovos: { pixId: paymentId, valor: valorPago.toFixed(2) },
+      dadosNovos: { pixId: paymentId, valor: Number(valorPago).toFixed(2) },
     });
   }
 }

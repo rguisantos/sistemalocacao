@@ -52,12 +52,12 @@ configuracoesRouter.put(
       });
 
       await registrarAuditoria({
+        req,
         usuarioId: req.auth!.sub,
         acao: 'atualizar_integracoes_pagamento',
         entidade: 'ConfiguracaoSistema',
         // NUNCA registrar os valores — apenas quais chaves mudaram
         dadosNovos: { chavesAlteradas: Object.keys(input) },
-        ip: req.ip,
       });
 
       res.json({ ok: true });

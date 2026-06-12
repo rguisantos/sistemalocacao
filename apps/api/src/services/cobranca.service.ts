@@ -75,7 +75,7 @@ export async function registrarCobranca(
     const existente = await prisma.cobranca.findFirst({
       where: { syncOrigemId: input.syncOrigemId },
     });
-    if (existente) return { cobranca: existente, duplicada: true };
+    if (existente) return { cobranca: existente, calc: null, alerta: null, duplicada: true };
   }
 
   let resultado;
@@ -196,7 +196,7 @@ export async function registrarCobranca(
       const existente = await prisma.cobranca.findUnique({
         where: { syncOrigemId: input.syncOrigemId },
       });
-      if (existente) return { cobranca: existente, duplicada: true };
+      if (existente) return { cobranca: existente, calc: null, alerta: null, duplicada: true };
     }
     throw e;
   }
