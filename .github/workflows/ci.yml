@@ -32,8 +32,7 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-          # cache: npm  ← reabilite após commitar o package-lock.json
-          #              (o cache exige o lock file no repositório)
+          cache: npm
 
       - name: Instalar dependências
         # npm ci exige package-lock.json; cai para npm install enquanto
