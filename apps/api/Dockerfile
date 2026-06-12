@@ -8,7 +8,7 @@ COPY package.json package-lock.json* turbo.json ./
 COPY packages/database/package.json packages/database/
 COPY packages/shared/package.json packages/shared/
 COPY apps/api/package.json apps/api/
-RUN npm ci --omit=optional
+RUN if [ -f package-lock.json ]; then npm ci --omit=optional; else npm install --omit=optional; fi
 
 # Código + Prisma Client
 COPY packages ./packages

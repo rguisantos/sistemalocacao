@@ -1,5 +1,11 @@
 # Deploy e Homologação
 
+## Lock file (reprodutibilidade)
+O repositório nasceu sem `package-lock.json` (gerado apenas pelo `npm install`).
+Após o primeiro `npm install` local, **commite o lock file** e reabilite
+`cache: npm` + `npm ci` no workflow de CI — builds ficam mais rápidos e
+determinísticos.
+
 ## Migrations versionadas (spec §15)
 Em desenvolvimento usamos `prisma db push` (rápido, sem histórico). Antes da
 homologação, **gere a migration inicial versionada** — os Dockerfiles aplicam

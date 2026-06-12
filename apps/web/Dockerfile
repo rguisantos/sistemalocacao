@@ -7,7 +7,7 @@ COPY package.json package-lock.json* turbo.json ./
 COPY packages/database/package.json packages/database/
 COPY packages/shared/package.json packages/shared/
 COPY apps/web/package.json apps/web/
-RUN npm ci --omit=optional
+RUN if [ -f package-lock.json ]; then npm ci --omit=optional; else npm install --omit=optional; fi
 
 COPY packages ./packages
 COPY apps/web ./apps/web

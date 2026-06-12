@@ -27,15 +27,19 @@ jobs:
       JWT_REFRESH_SECRET: outro-ci-secret-com-mais-de-32-caracteres
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
-          cache: npm
+          node-version: 22
+          # cache: npm  ← reabilite após commitar o package-lock.json
+          #              (o cache exige o lock file no repositório)
 
       - name: Instalar dependências
-        run: npm ci
+        # npm ci exige package-lock.json; cai para npm install enquanto
+        # o lock não estiver commitado (gere com `npm install` local)
+        run: |
+          if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
       - name: Gerar Prisma Client
         run: npx prisma generate --schema packages/database/prisma/schema.prisma
