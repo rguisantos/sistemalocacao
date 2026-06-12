@@ -1,0 +1,114 @@
+From 54a00703d744102e05b4e3c8d5ddf830efe47638 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Fri, 12 Jun 2026 19:12:27 +0000
+Subject: [PATCH] fix(api): corrigir os 18 erros de tipo do primeiro build no
+ CI
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Causa-raiz de 13 deles: @types/express ^5.0.0 com Express 4.21 — os
+typings do v5 tipam req.params/req.query como string | string[].
+Fixado @types/express ^4.17.21 (rode npm install para atualizar o
+package-lock.json e commite-o junto).
+
+Pontuais:
+- cobranca.service: braço idempotente (duplicada) do union de
+  registrarCobranca agora inclui calc/alerta nulos — a rota
+  desestrutura os quatro campos
+- relatorios: t._sum possivelmente undefined no groupBy (optional
+  chaining)
+- configuracoes: registrarAuditoria não aceita 'ip' avulso; passa req
+  e o helper extrai o ip
+- mercadopago: valorPago chega como string do webhook; Number() antes
+  do toFixed na trilha de auditoria
+---
+ apps/api/package.json                        | 2 +-
+ apps/api/src/routes/configuracoes.routes.ts  | 2 +-
+ apps/api/src/routes/relatorios.routes.ts     | 2 +-
+ apps/api/src/services/cobranca.service.ts    | 4 ++--
+ apps/api/src/services/mercadopago.service.ts | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/apps/api/package.json b/apps/api/package.json
+index 0951218..6f7d990 100644
+--- a/apps/api/package.json
++++ b/apps/api/package.json
+@@ -29,7 +29,7 @@
+     "pdfkit": "^0.15.0"
+   },
+   "devDependencies": {
+-    "@types/express": "^5.0.0",
++    "@types/express": "^4.17.21",
+     "@types/cors": "^2.8.17",
+     "@types/bcryptjs": "^2.4.6",
+     "@types/jsonwebtoken": "^9.0.7",
+diff --git a/apps/api/src/routes/configuracoes.routes.ts b/apps/api/src/routes/configuracoes.routes.ts
+index d645aa9..86c053a 100644
+--- a/apps/api/src/routes/configuracoes.routes.ts
++++ b/apps/api/src/routes/configuracoes.routes.ts
+@@ -52,12 +52,12 @@ configuracoesRouter.put(
+       });
+ 
+       await registrarAuditoria({
++        req,
+         usuarioId: req.auth!.sub,
+         acao: 'atualizar_integracoes_pagamento',
+         entidade: 'ConfiguracaoSistema',
+         // NUNCA registrar os valores — apenas quais chaves mudaram
+         dadosNovos: { chavesAlteradas: Object.keys(input) },
+-        ip: req.ip,
+       });
+ 
+       res.json({ ok: true });
+diff --git a/apps/api/src/routes/relatorios.routes.ts b/apps/api/src/routes/relatorios.routes.ts
+index ad8fc20..02eeee8 100644
+--- a/apps/api/src/routes/relatorios.routes.ts
++++ b/apps/api/src/routes/relatorios.routes.ts
+@@ -238,7 +238,7 @@ relatoriosRouter.get('/historico-produto/:produtoId', exigirPermissao(PERMISSOES
+       _sum: { valorRecebidoPago: true },
+     });
+     const mapaTotais = Object.fromEntries(
+-      totais.map((t) => [t.locacaoId, t._sum.valorRecebidoPago?.toFixed(2) ?? '0.00'])
++      totais.map((t) => [t.locacaoId, t._sum?.valorRecebidoPago?.toFixed(2) ?? '0.00'])
+     );
+     res.json(json(locacoes.map((l) => ({ ...l, totalRecebido: mapaTotais[l.id] ?? '0.00' }))));
+   } catch (e) { next(e); }
+diff --git a/apps/api/src/services/cobranca.service.ts b/apps/api/src/services/cobranca.service.ts
+index 957cb84..b6448c2 100644
+--- a/apps/api/src/services/cobranca.service.ts
++++ b/apps/api/src/services/cobranca.service.ts
+@@ -75,7 +75,7 @@ export async function registrarCobranca(
+     const existente = await prisma.cobranca.findFirst({
+       where: { syncOrigemId: input.syncOrigemId },
+     });
+-    if (existente) return { cobranca: existente, duplicada: true };
++    if (existente) return { cobranca: existente, calc: null, alerta: null, duplicada: true };
+   }
+ 
+   let resultado;
+@@ -196,7 +196,7 @@ export async function registrarCobranca(
+       const existente = await prisma.cobranca.findUnique({
+         where: { syncOrigemId: input.syncOrigemId },
+       });
+-      if (existente) return { cobranca: existente, duplicada: true };
++      if (existente) return { cobranca: existente, calc: null, alerta: null, duplicada: true };
+     }
+     throw e;
+   }
+diff --git a/apps/api/src/services/mercadopago.service.ts b/apps/api/src/services/mercadopago.service.ts
+index fd0651c..291a5b7 100644
+--- a/apps/api/src/services/mercadopago.service.ts
++++ b/apps/api/src/services/mercadopago.service.ts
+@@ -149,7 +149,7 @@ export async function processarWebhookPagamento(paymentId: string) {
+       acao: 'pix_confirmado',
+       entidade: 'Cobranca',
+       entidadeId: cobrancaId,
+-      dadosNovos: { pixId: paymentId, valor: valorPago.toFixed(2) },
++      dadosNovos: { pixId: paymentId, valor: Number(valorPago).toFixed(2) },
+     });
+   }
+ }
+-- 
+2.43.0
+
