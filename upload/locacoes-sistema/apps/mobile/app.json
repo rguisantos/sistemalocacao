@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Locações",
+    "slug": "locacoes-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "locacoes",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#1b5e3f"
+    },
+    "android": {
+      "package": "br.com.locacoes.app",
+      "permissions": [
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_SCAN",
+        "ACCESS_FINE_LOCATION"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "br.com.locacoes.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Usamos sua localização para preencher o endereço do cliente."
+        }
+      ]
+    ]
+  }
+}

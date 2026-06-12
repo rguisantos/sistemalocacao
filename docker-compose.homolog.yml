@@ -1,0 +1,59 @@
+# Ambiente de HOMOLOGAÇÃO completo (spec §15): banco + redis + API + painel.
+#   1. Crie .env.homolog com JWT_ACCESS_SECRET e JWT_REFRESH_SECRET (≥32 chars)
+#   2. docker compose -f docker-compose.homolog.yml --env-file .env.homolog up -d --build
+#   3. Seeds: docker compose -f docker-compose.homolog.yml exec api npx tsx packages/database/prisma/seed.ts
+# Painel: http://localhost:3000 · API/docs: http://localhost:3001/api/docs
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: locacoes
+      POSTGRES_PASSWORD: locacoes
+      POSTGRES_DB: locacoes_db
+    volumes:
+      - pgdata-homolog:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U locacoes -d locacoes_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://locacoes:locacoes@postgres:5432/locacoes_db
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina no .env.homolog}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?defina no .env.homolog}
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata-homolog:

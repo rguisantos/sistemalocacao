@@ -1,0 +1,482 @@
+// packages/database/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+enum TipoPessoa {
+  PESSOA_FISICA
+  PESSOA_JURIDICA
+}
+
+enum RegraCobranca {
+  VALOR_FIXO
+  PERCENTUAL_A_RECEBER
+  PERCENTUAL_A_PAGAR
+}
+
+enum FrequenciaCobranca {
+  SEMANAL
+  QUINZENAL
+  MENSAL
+}
+
+enum StatusLocacao {
+  ATIVA
+  FINALIZADA
+}
+
+enum TipoFinalizacao {
+  DEPOSITO
+  RELOCACAO
+}
+
+enum FormaPagamento {
+  DINHEIRO
+  PIX_MANUAL
+  CARTAO
+  PIX_MERCADO_PAGO
+}
+
+enum StatusPagamento {
+  PENDENTE
+  PAGO
+  PARCIAL
+}
+
+enum StatusSaldo {
+  PENDENTE
+  QUITADO
+}
+
+enum SyncStatus {
+  SYNCED
+  PENDING_CREATE
+  PENDING_UPDATE
+  PENDING_DELETE
+}
+
+// ============================================================
+// AUTENTICAÇÃO
+// ============================================================
+
+model Usuario {
+  id           String    @id @default(cuid())
+  nome         String
+  cpf          String    @unique
+  senhaHash    String    @map("senha_hash")
+  ativo        Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  version      BigInt    @default(0)
+  isDeleted    Boolean   @default(false) @map("is_deleted")
+
+  permissoes   UsuarioPermissao[]
+  rotas        UsuarioRota[]
+  cobrancas    Cobranca[]
+  refreshTokens RefreshToken[]
+  logs          LogAuditoria[]
+
+  @@map("usuarios")
+}
+
+model RefreshToken {
+  id         String   @id @default(cuid())
+  token      String   @unique
+  usuarioId  String   @map("usuario_id")
+  expiresAt  DateTime @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Permissao {
+  id        String   @id @default(cuid())
+  chave     String   @unique
+  descricao String
+  grupo     String   @default("geral")
+
+  usuarios  UsuarioPermissao[]
+
+  @@map("permissoes")
+}
+
+model UsuarioPermissao {
+  usuarioId   String @map("usuario_id")
+  permissaoId String @map("permissao_id")
+
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  permissao   Permissao @relation(fields: [permissaoId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, permissaoId])
+  @@map("usuario_permissoes")
+}
+
+// ============================================================
+// ROTAS E DEPÓSITOS
+// ============================================================
+
+model Rota {
+  id        String   @id @default(cuid())
+  nome      String
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  version   BigInt   @default(0)
+  isDeleted Boolean  @default(false) @map("is_deleted")
+
+  usuarios  UsuarioRota[]
+  clientes  Cliente[]
+
+  @@map("rotas")
+}
+
+model UsuarioRota {
+  usuarioId String @map("usuario_id")
+  rotaId    String @map("rota_id")
+
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  rota      Rota    @relation(fields: [rotaId], references: [id], onDelete: Cascade)
+
+  @@id([usuarioId, rotaId])
+  @@map("usuario_rotas")
+}
+
+model Deposito {
+  id           String   @id @default(cuid())
+  nome         String
+  logradouro   String?
+  numero       String?
+  complemento  String?
+  bairro       String?
+  cidade       String?
+  estado       String?
+  cep          String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  version      BigInt   @default(0)
+  isDeleted    Boolean  @default(false) @map("is_deleted")
+
+  locacoes     Locacao[]
+
+  @@map("depositos")
+}
+
+// ============================================================
+// CADASTROS AUXILIARES DE PRODUTO
+// ============================================================
+
+model TipoProduto {
+  id        String    @id @default(cuid())
+  nome      String    @unique
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  produtos  Produto[]
+
+  @@map("tipos_produto")
+}
+
+model Tamanho {
+  id        String    @id @default(cuid())
+  descricao String    @unique
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  produtos  Produto[]
+
+  @@map("tamanhos")
+}
+
+model Condicao {
+  id        String    @id @default(cuid())
+  descricao String    @unique
+  ativo     Boolean   @default(true)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  produtos  Produto[]
+
+  @@map("condicoes")
+}
+
+// ============================================================
+// PRODUTO
+// ============================================================
+
+model Produto {
+  id          String  @id @default(cuid())
+  plaqueta    String  @unique
+  tipoProdutoId String @map("tipo_produto_id")
+  descricao   String?
+  tamanhoId   String? @map("tamanho_id")
+  condicaoId  String? @map("condicao_id")
+  chave       String?
+  contador    Int     @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  version     BigInt   @default(0)
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+
+  tipoProduto TipoProduto @relation(fields: [tipoProdutoId], references: [id])
+  tamanho     Tamanho?    @relation(fields: [tamanhoId], references: [id])
+  condicao    Condicao?   @relation(fields: [condicaoId], references: [id])
+  locacoes    Locacao[]
+
+  @@map("produtos")
+}
+
+// ============================================================
+// CLIENTE E ENDEREÇO
+// ============================================================
+
+model Cliente {
+  id                  String     @id @default(cuid())
+  tipo                TipoPessoa @default(PESSOA_FISICA)
+  nome                String
+  razaoSocial         String?    @map("razao_social")
+  cpfCnpj             String?    @map("cpf_cnpj")
+  rgInscricaoEstadual String?    @map("rg_inscricao_estadual")
+  telefones           Json       @default("[]")
+  rotaId              String     @map("rota_id")
+  observacoes         String?
+  ativo               Boolean    @default(true)
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  version             BigInt     @default(0)
+  isDeleted           Boolean    @default(false) @map("is_deleted")
+
+  rota                Rota       @relation(fields: [rotaId], references: [id])
+  enderecos           Endereco[]
+  locacoes            Locacao[]
+  saldosDevedores     SaldoDevedorLocacao[]
+
+  @@map("clientes")
+}
+
+model Endereco {
+  id          String   @id @default(cuid())
+  clienteId   String   @map("cliente_id")
+  logradouro  String
+  numero      String
+  complemento String?
+  bairro      String
+  cidade      String
+  estado      String
+  cep         String
+  latitude    Decimal? @db.Decimal(10, 7)
+  longitude   Decimal? @db.Decimal(10, 7)
+  principal   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  version     BigInt   @default(0)
+  isDeleted   Boolean  @default(false) @map("is_deleted")
+
+  cliente     Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  locacoes    Locacao[]
+
+  @@map("enderecos")
+}
+
+// ============================================================
+// LOCAÇÃO
+// ============================================================
+
+model Locacao {
+  id               String         @id @default(cuid())
+  produtoId        String         @map("produto_id")
+  clienteId        String         @map("cliente_id")
+  enderecoId       String         @map("endereco_id")
+  regra            RegraCobranca
+  frequencia       FrequenciaCobranca? // apenas para VALOR_FIXO
+  valorFixo        Decimal?       @db.Decimal(10, 2) @map("valor_fixo")
+  valorPartida     Decimal?       @db.Decimal(10, 4) @map("valor_partida")
+  percentual       Decimal?       @db.Decimal(5, 4)  // ex: 0.5000 = 50%
+  contadorInicial  Int            @map("contador_inicial")
+  dataInicio       DateTime       @map("data_inicio")
+  dataFim          DateTime?      @map("data_fim")
+  status           StatusLocacao  @default(ATIVA)
+  finalizacaoTipo  TipoFinalizacao? @map("finalizacao_tipo")
+  depositoId       String?        @map("deposito_id")
+  saldoAtual       Decimal        @default(0) @db.Decimal(10, 2) @map("saldo_atual")
+  // saldo positivo = cliente deve; negativo = cliente tem haver
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  version          BigInt         @default(0)
+  isDeleted        Boolean        @default(false) @map("is_deleted")
+
+  produto          Produto        @relation(fields: [produtoId], references: [id])
+  cliente          Cliente        @relation(fields: [clienteId], references: [id])
+  endereco         Endereco       @relation(fields: [enderecoId], references: [id])
+  deposito         Deposito?      @relation(fields: [depositoId], references: [id])
+  cobrancas        Cobranca[]
+  saldoDevedor     SaldoDevedorLocacao?
+
+  @@map("locacoes")
+}
+
+// ============================================================
+// COBRANÇA
+// ============================================================
+
+model Cobranca {
+  id                      String         @id @default(cuid())
+  locacaoId               String         @map("locacao_id")
+  usuarioId               String         @map("usuario_id")
+  dataCobranca            DateTime       @default(now()) @map("data_cobranca")
+
+  // Contadores (percentual)
+  contadorAnterior        Int?           @map("contador_anterior")
+  contadorAtual           Int?           @map("contador_atual")
+  partidasJogadas         Int?           @map("partidas_jogadas")
+  descontoPartidas        Int?           @default(0) @map("desconto_partidas")
+  partidasConsideradas    Int?           @map("partidas_consideradas")
+
+  // Valores calculados (tudo em Decimal para precisão)
+  valorBruto              Decimal        @db.Decimal(10, 2) @map("valor_bruto")
+  acrescimo               Decimal        @default(0) @db.Decimal(10, 2)
+  valorPercentual         Decimal?       @db.Decimal(10, 2) @map("valor_percentual")
+  descontoValorReceber    Decimal        @default(0) @db.Decimal(10, 2) @map("desconto_valor_receber")
+  valorLiquidoBase        Decimal        @db.Decimal(10, 2) @map("valor_liquido_base")
+  saldoDevedorAnterior    Decimal        @default(0) @db.Decimal(10, 2) @map("saldo_devedor_anterior")
+  valorLiquidoFinal       Decimal        @db.Decimal(10, 2) @map("valor_liquido_final")
+  valorRecebidoPago       Decimal        @default(0) @db.Decimal(10, 2) @map("valor_recebido_pago")
+  saldoResultante         Decimal        @default(0) @db.Decimal(10, 2) @map("saldo_resultante")
+
+  // Pagamento
+  formaPagamento          FormaPagamento @default(DINHEIRO) @map("forma_pagamento")
+  pixId                   String?        @map("pix_id")
+  pixQrCode               String?        @map("pix_qr_code")
+  pixCopiaCola            String?        @map("pix_copia_cola")
+  statusPagamento         StatusPagamento @default(PENDENTE) @map("status_pagamento")
+
+  // Extras
+  trocaPano               Boolean        @default(false) @map("troca_pano")
+  observacoes             String?
+
+  // Sincronização
+  sincronizado            Boolean        @default(true)
+  syncOrigemId            String?        @unique @map("sync_origem_id") // UUID do mobile; unique garante idempotência mesmo sob corrida
+
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+  version                 BigInt         @default(0)
+  isDeleted               Boolean        @default(false) @map("is_deleted")
+
+  locacao                 Locacao        @relation(fields: [locacaoId], references: [id])
+  usuario                 Usuario        @relation(fields: [usuarioId], references: [id])
+
+  @@map("cobrancas")
+}
+
+// ============================================================
+// SALDO DEVEDOR (locações finalizadas)
+// ============================================================
+
+model SaldoDevedorLocacao {
+  id            String      @id @default(cuid())
+  locacaoId     String      @unique @map("locacao_id")
+  clienteId     String      @map("cliente_id")
+  valorOriginal Decimal     @db.Decimal(10, 2) @map("valor_original")
+  valorRestante Decimal     @db.Decimal(10, 2) @map("valor_restante")
+  status        StatusSaldo @default(PENDENTE)
+  dataQuitacao  DateTime?   @map("data_quitacao")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  version       BigInt      @default(0)
+  isDeleted     Boolean     @default(false) @map("is_deleted")
+
+  locacao       Locacao     @relation(fields: [locacaoId], references: [id])
+  cliente       Cliente     @relation(fields: [clienteId], references: [id])
+  pagamentos    PagamentoSaldo[]
+
+  @@map("saldos_devedores_locacao")
+}
+
+model PagamentoSaldo {
+  id             String         @id @default(cuid())
+  saldoId        String         @map("saldo_id")
+  usuarioId      String         @map("usuario_id")
+  valor          Decimal        @db.Decimal(10, 2)
+  formaPagamento FormaPagamento @map("forma_pagamento")
+  dataPagamento  DateTime       @default(now()) @map("data_pagamento")
+  observacoes    String?
+  createdAt      DateTime       @default(now()) @map("created_at")
+
+  saldo          SaldoDevedorLocacao @relation(fields: [saldoId], references: [id])
+
+  @@map("pagamentos_saldo")
+}
+
+// ============================================================
+// AUDITORIA
+// ============================================================
+
+// Configurações dinâmicas (ex.: credenciais Mercado Pago via painel).
+// Valores sensíveis nunca saem completos pela API (mascarados na leitura).
+model ConfiguracaoSistema {
+  chave     String   @id
+  valor     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("configuracoes_sistema")
+}
+
+model LogAuditoria {
+  id              String   @id @default(cuid())
+  usuarioId       String?  @map("usuario_id")
+  acao            String
+  entidade        String
+  entidadeId      String?  @map("entidade_id")
+  dadosAnteriores Json?    @map("dados_anteriores")
+  dadosNovos      Json?    @map("dados_novos")
+  ip              String?
+  userAgent       String?  @map("user_agent")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  usuario         Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([usuarioId])
+  @@index([entidade, entidadeId])
+  @@map("logs_auditoria")
+}
+
+// ============================================================
+// CONFLITOS DE SYNC
+// ============================================================
+
+model ConflitSync {
+  id                 String    @id @default(cuid())
+  entidade           String
+  entidadeId         String    @map("entidade_id")
+  dadosMobile        Json      @map("dados_mobile")
+  dadosServidor      Json      @map("dados_servidor")
+  camposConflitantes Json      @default("[]") @map("campos_conflitantes")
+  usuarioOrigemId    String?   @map("usuario_origem_id")
+  deviceId           String?   @map("device_id")
+  resolvido          Boolean   @default(false)
+  // manter_servidor | aplicar_mobile | mesclar | auto_identico | auto_merge | auto_fast_forward
+  resolucao          String?
+  dadosResolvidos    Json?     @map("dados_resolvidos")
+  resolvidoPor       String?   @map("resolvido_por")
+  resolvidoEm        DateTime? @map("resolvido_em")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@index([resolvido, createdAt])
+  @@map("conflitos_sync")
+}

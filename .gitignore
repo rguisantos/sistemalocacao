@@ -1,0 +1,27 @@
+node_modules
+dist
+.next
+.turbo
+*.log
+.env
+.env.local
+.env.production
+
+# Expo
+.expo
+android
+ios
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ambientes
+.env.homolog
+*.tsbuildinfo
+coverage
+
+# Empacotamento
+*.tar.gz
+package-lock.json
+tool-results/

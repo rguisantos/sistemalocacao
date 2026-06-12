@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design tokens semânticos (claro/escuro) — paleta feltro.
+   Páginas usam classes semânticas (bg-card, text-muted-foreground…)
+   e os aliases legados (feltro, giz) apontam para os tokens, então
+   TODO o painel responde ao tema sem lógica por página. */
+:root {
+  color-scheme: light;
+  --background: 40 35% 97%;        /* giz */
+  --foreground: 158 10% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 158 10% 12%;
+  --muted: 150 12% 94%;
+  --muted-foreground: 152 7% 45%;
+  --primary: 158 55% 24%;          /* feltro #1b5e3f */
+  --primary-foreground: 150 30% 98%;
+  --border: 150 10% 88%;
+  --destructive: 0 72% 45%;
+  --sidebar: 150 18% 97%;
+  --sidebar-foreground: 158 12% 18%;
+  --sidebar-accent: 152 16% 91%;
+  --radius: 0.625rem;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 160 12% 8%;
+  --foreground: 150 12% 96%;
+  --card: 158 11% 12%;
+  --card-foreground: 150 12% 96%;
+  --muted: 156 9% 17%;
+  --muted-foreground: 150 7% 62%;
+  --primary: 156 48% 45%;          /* feltro clareado p/ contraste */
+  --primary-foreground: 160 15% 8%;
+  --border: 150 8% 100% / 0.12;
+  --destructive: 0 70% 60%;
+  --sidebar: 158 12% 10%;
+  --sidebar-foreground: 150 12% 92%;
+  --sidebar-accent: 156 10% 18%;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* Controles de formulário herdam o tema (color-scheme cuida do resto) */
+  input, select, textarea {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+/* Impressão sempre em tema claro, independente do modo ativo */
+@media print {
+  :root, .dark {
+    color-scheme: light;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 40%;
+    --primary: 158 55% 24%;
+    --primary-foreground: 0 0% 100%;
+    --border: 0 0% 85%;
+    --destructive: 0 72% 45%;
+  }
+}
