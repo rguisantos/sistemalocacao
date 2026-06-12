@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: locacoes
+          POSTGRES_PASSWORD: locacoes
+          POSTGRES_DB: locacoes_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U locacoes"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://locacoes:locacoes@localhost:5432/locacoes_test
+      JWT_ACCESS_SECRET: ci-secret-com-mais-de-32-caracteres-aqui
+      JWT_REFRESH_SECRET: outro-ci-secret-com-mais-de-32-caracteres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate --schema packages/database/prisma/schema.prisma
+
+      - name: Aplicar schema no banco de teste
+        run: npx prisma db push --schema packages/database/prisma/schema.prisma
+
+      - name: Type-check (todos os pacotes)
+        run: npm run build
+
+      - name: Testes unitários do engine de cálculo
+        run: npm test -w @locacoes/shared
+
+      - name: Testes de integração da API
+        run: npm test -w api
