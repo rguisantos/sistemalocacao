@@ -1,33 +1,38 @@
-# fly.toml — API do Sistema de Locações
-app = "locacoes-api"
-primary_region = "gru"
+# fly.toml app configuration file generated for sistemalocacao on 2026-06-12T02:50:57Z
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'sistemalocacao'
+primary_region = 'gru'
 
 [build]
-  dockerfile = "apps/api/Dockerfile"
+  dockerfile = 'apps/api/Dockerfile'
 
 [http_service]
   internal_port = 3001
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
 
-[http_service.concurrency]
-  type = "connections"
-  hard_limit = 100
-  soft_limit = 80
-
-[[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
-  cpus = 1
+  [http_service.concurrency]
+    type = 'connections'
+    hard_limit = 100
+    soft_limit = 80
 
 [checks]
   [checks.health]
-    grace_period = "30s"
-    interval = "15s"
-    method = "get"
-    path = "/health"
     port = 3001
-    timeout = "5s"
-    type = "http"
+    type = 'http'
+    interval = '15s'
+    timeout = '5s'
+    grace_period = '30s'
+    method = 'get'
+    path = '/health'
+
+[[vm]]
+  memory = '512mb'
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
