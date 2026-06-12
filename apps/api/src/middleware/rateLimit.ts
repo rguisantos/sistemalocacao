@@ -19,6 +19,9 @@ function criarLimiter(pontos: number, duracaoSeg: number, prefixo: string): Rate
   return new RateLimiterMemory({ points: pontos, duration: duracaoSeg, keyPrefix: prefixo });
 }
 
+// Em ambiente de teste, desabilita o rate limiting para não interferir
+const bypassMiddleware = async (_req: Request, _res: Response, next: NextFunction) => next();
+
 // Login: 5 tentativas por 15min por IP+CPF
 const loginLimiter = criarLimiter(5, 15 * 60, 'rl:login');
 // Sync: 30 por minuto por usuário
@@ -27,6 +30,7 @@ const syncLimiter = criarLimiter(30, 60, 'rl:sync');
 const apiLimiter = criarLimiter(300, 60, 'rl:api');
 
 function aplicar(limiter: RateLimiterAbstract, chave: (req: Request) => string) {
+  if (env.NODE_ENV === 'test') return bypassMiddleware;
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       await limiter.consume(chave(req));

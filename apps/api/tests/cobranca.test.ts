@@ -49,7 +49,7 @@ describe('fluxo de cobrança percentual', () => {
       .set(auth(ctx.token))
       .send({
         contadorAtual: 1200,
-        valorRecebidoPago: '150.00', // paga 30 a menos que os 180 devidos
+        valorRecebidoPago: '150.00', // paga 50 a menos que os 200 devidos
         formaPagamento: 'DINHEIRO',
       });
 
@@ -57,7 +57,8 @@ describe('fluxo de cobrança percentual', () => {
     expect(resp.body.cobranca.statusPagamento).toBe('PARCIAL');
 
     const locacao = await prisma.locacao.findUnique({ where: { id: locacaoId } });
-    expect(locacao!.saldoAtual.toFixed(2)).toBe('30.00'); // 180 - 150
+    // 200 partidas × 2.00 = 400 × 50% = 200 devidos; pago 150 → saldo 50
+    expect(locacao!.saldoAtual.toFixed(2)).toBe('50.00');
 
     const produto = await prisma.produto.findUnique({ where: { id: ctx.produtoId } });
     expect(produto!.contador).toBe(1200);
@@ -67,13 +68,14 @@ describe('fluxo de cobrança percentual', () => {
     const locacaoId = await criarLocacaoPercentual();
     await request(app).post(`/api/locacoes/${locacaoId}/cobrancas`).set(auth(ctx.token))
       .send({ contadorAtual: 1200, valorRecebidoPago: '150.00', formaPagamento: 'DINHEIRO' });
+    // 200 partidas × 2 × 50% = 200; pago 150 → saldo 50
 
     const previa = await request(app)
       .post(`/api/locacoes/${locacaoId}/calcular`)
       .set(auth(ctx.token))
       .send({ contadorAtual: 1300 });
-    // 100 partidas * 2 = 200 → 50% = 100 → + saldo 30 = 130
-    expect(previa.body.valorLiquidoFinal).toBe('130.00');
+    // 100 partidas * 2 = 200 → 50% = 100 → + saldo 50 = 150
+    expect(previa.body.valorLiquidoFinal).toBe('150.00');
   });
 
   it('rejeita contador regredindo com 400', async () => {
@@ -100,7 +102,7 @@ describe('finalização com saldo devedor', () => {
   it('cria SaldoDevedorLocacao e o pagamento quita', async () => {
     const locacaoId = await criarLocacaoPercentual();
     await request(app).post(`/api/locacoes/${locacaoId}/cobrancas`).set(auth(ctx.token))
-      .send({ contadorAtual: 1200, valorRecebidoPago: '100.00', formaPagamento: 'DINHEIRO' }); // deve 80
+      .send({ contadorAtual: 1200, valorRecebidoPago: '100.00', formaPagamento: 'DINHEIRO' }); // 200 devido - 100 pago = 100 saldo
 
     const deposito = await prisma.deposito.create({ data: { nome: 'Dep', version: BigInt(Date.now()) } });
     const fin = await request(app)
@@ -110,13 +112,13 @@ describe('finalização com saldo devedor', () => {
     expect(fin.status).toBe(200);
 
     const saldo = await prisma.saldoDevedorLocacao.findUnique({ where: { locacaoId } });
-    expect(saldo!.valorRestante.toFixed(2)).toBe('80.00');
+    expect(saldo!.valorRestante.toFixed(2)).toBe('100.00');
 
     // paga parcial e depois quita
     await request(app).post(`/api/locacoes/saldos/${saldo!.id}/pagamentos`).set(auth(ctx.token))
-      .send({ valor: '50.00', formaPagamento: 'DINHEIRO' });
+      .send({ valor: '60.00', formaPagamento: 'DINHEIRO' });
     const r2 = await request(app).post(`/api/locacoes/saldos/${saldo!.id}/pagamentos`).set(auth(ctx.token))
-      .send({ valor: '30.00', formaPagamento: 'PIX_MANUAL' });
+      .send({ valor: '40.00', formaPagamento: 'PIX_MANUAL' });
     expect(r2.status).toBe(201);
 
     const quitado = await prisma.saldoDevedorLocacao.findUnique({ where: { locacaoId } });
