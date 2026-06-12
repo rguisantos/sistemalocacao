@@ -1,0 +1,168 @@
+From b5a3247dc276b2fefe296d450f76ce0852b1ac29 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 04:45:47 +0000
+Subject: [PATCH] fix(mobile): peer deps do expo-router faltando (tela branca)
+ + eas update
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+CAUSA PROVÁVEL da tela branca persistente: expo-router v4 depende de
+react-native-reanimated e react-native-gesture-handler como peers, e
+ambos estavam AUSENTES. Em dev o Metro tolera; no bundle release a
+falta trava o boot do router → tela branca sem erro visível.
+
+- react-native-reanimated ~3.16.1 e react-native-gesture-handler
+  ~2.20.2 (versões do SDK 52)
+- babel.config: plugin react-native-reanimated/plugin (obrigatório,
+  por último)
+- _layout: GestureHandlerRootView envolvendo a árvore (requisito do
+  gesture-handler para funcionar em release)
+
+Infra de OTA (eas update) para iterar sem rebuild nativo:
+- expo-updates ~0.27.4
+- runtimeVersion policy 'appVersion' + updates.fallbackToCacheTimeout 0
+- eas.json com canais development/preview/production e
+  EXPO_PUBLIC_API_URL por perfil (ajustar a URL da Railway)
+---
+ apps/mobile/app.json        |  8 +++++++-
+ apps/mobile/app/_layout.tsx |  9 ++++++---
+ apps/mobile/babel.config.js |  6 +++++-
+ apps/mobile/eas.json        | 22 ++++++++++++++++++++++
+ apps/mobile/package.json    | 23 +++++++++++++----------
+ 5 files changed, 53 insertions(+), 15 deletions(-)
+ create mode 100644 apps/mobile/eas.json
+
+diff --git a/apps/mobile/app.json b/apps/mobile/app.json
+index 1f47dbd..7d2ab54 100644
+--- a/apps/mobile/app.json
++++ b/apps/mobile/app.json
+@@ -39,6 +39,12 @@
+           }
+         }
+       ]
+-    ]
++    ],
++    "runtimeVersion": {
++      "policy": "appVersion"
++    },
++    "updates": {
++      "fallbackToCacheTimeout": 0
++    }
+   }
+ }
+\ No newline at end of file
+diff --git a/apps/mobile/app/_layout.tsx b/apps/mobile/app/_layout.tsx
+index 6e64a5e..9e2126c 100644
+--- a/apps/mobile/app/_layout.tsx
++++ b/apps/mobile/app/_layout.tsx
+@@ -1,5 +1,6 @@
+ import { useEffect } from 'react';
+ import { StatusBar } from 'react-native';
++import { GestureHandlerRootView } from 'react-native-gesture-handler';
+ import { Stack } from 'expo-router';
+ import { inicializarBanco, migrarBanco } from '../src/db/schema';
+ import { registrarSyncBackground } from '../src/services/backgroundSync';
+@@ -56,8 +57,10 @@ export default function RootLayout() {
+   }, []);
+ 
+   return (
+-    <ProvedorTema>
+-      <StackTematizado />
+-    </ProvedorTema>
++    <GestureHandlerRootView style={{ flex: 1 }}>
++      <ProvedorTema>
++        <StackTematizado />
++      </ProvedorTema>
++    </GestureHandlerRootView>
+   );
+ }
+diff --git a/apps/mobile/babel.config.js b/apps/mobile/babel.config.js
+index 9e4d4b7..06a9b3b 100644
+--- a/apps/mobile/babel.config.js
++++ b/apps/mobile/babel.config.js
+@@ -1,4 +1,8 @@
+ module.exports = function (api) {
+   api.cache(true);
+-  return { presets: ['babel-preset-expo'] };
++  return {
++    presets: ['babel-preset-expo'],
++    // O plugin do Reanimated DEVE ser o último da lista.
++    plugins: ['react-native-reanimated/plugin'],
++  };
+ };
+diff --git a/apps/mobile/eas.json b/apps/mobile/eas.json
+new file mode 100644
+index 0000000..40c4379
+--- /dev/null
++++ b/apps/mobile/eas.json
+@@ -0,0 +1,22 @@
++{
++  "cli": { "version": ">= 12.0.0", "appVersionSource": "remote" },
++  "build": {
++    "development": {
++      "developmentClient": true,
++      "distribution": "internal",
++      "channel": "development"
++    },
++    "preview": {
++      "distribution": "internal",
++      "channel": "preview",
++      "android": { "buildType": "apk" },
++      "env": { "EXPO_PUBLIC_API_URL": "https://COLOQUE-SUA-API.up.railway.app" }
++    },
++    "production": {
++      "channel": "production",
++      "autoIncrement": true,
++      "env": { "EXPO_PUBLIC_API_URL": "https://COLOQUE-SUA-API.up.railway.app" }
++    }
++  },
++  "submit": { "production": {} }
++}
+diff --git a/apps/mobile/package.json b/apps/mobile/package.json
+index a24bf2f..0380764 100644
+--- a/apps/mobile/package.json
++++ b/apps/mobile/package.json
+@@ -13,26 +13,29 @@
+   },
+   "dependencies": {
+     "@locacoes/shared": "*",
++    "@react-native-community/netinfo": "11.4.1",
++    "decimal.js": "^10.4.3",
+     "expo": "~52.0.0",
+-    "expo-router": "~4.0.0",
+-    "expo-sqlite": "~15.0.0",
++    "expo-background-fetch": "~13.0.0",
++    "expo-build-properties": "~0.13.1",
+     "expo-crypto": "~14.0.0",
+-    "expo-secure-store": "~14.0.0",
++    "expo-location": "~18.0.0",
+     "expo-print": "~14.0.0",
++    "expo-router": "~4.0.0",
++    "expo-secure-store": "~14.0.0",
+     "expo-sharing": "~13.0.0",
++    "expo-sqlite": "~15.0.0",
+     "expo-task-manager": "~12.0.0",
+-    "expo-background-fetch": "~13.0.0",
++    "expo-updates": "~0.27.4",
+     "react": "18.3.1",
+     "react-native": "0.76.5",
++    "react-native-gesture-handler": "~2.20.2",
++    "react-native-qrcode-svg": "^6.3.2",
++    "react-native-reanimated": "~3.16.1",
+     "react-native-safe-area-context": "4.12.0",
+     "react-native-screens": "~4.4.0",
+-    "zustand": "^5.0.2",
+-    "decimal.js": "^10.4.3",
+-    "react-native-qrcode-svg": "^6.3.2",
+     "react-native-svg": "15.8.0",
+-    "@react-native-community/netinfo": "11.4.1",
+-    "expo-location": "~18.0.0",
+-    "expo-build-properties": "~0.13.1"
++    "zustand": "^5.0.2"
+   },
+   "devDependencies": {
+     "@babel/core": "^7.25.0",
+-- 
+2.43.0
+
