@@ -1,5 +1,6 @@
 // apps/api/src/services/cobranca.service.ts
-import { prisma, Prisma } from '@locacoes/database';
+import { prisma } from '@locacoes/database';
+import { Prisma } from '@prisma/client';
 import {
   calcularValorFixo,
   calcularPercentual,
@@ -80,7 +81,7 @@ export async function registrarCobranca(
 
   let resultado;
   try {
-    resultado = await prisma.$transaction(async (tx) => {
+    resultado = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const locacao = await tx.locacao.findUnique({
       where: { id: input.locacaoId },
       include: {
@@ -95,7 +96,7 @@ export async function registrarCobranca(
     const saldoAnterior = locacao.saldoAtual.toFixed(2);
 
     let calc: ReturnType<typeof calcularValorFixo> | ReturnType<typeof calcularPercentual>;
-    let contadorAnterior: number | null = null;
+    let contadorAnterior: number | null = 0;
 
     if (locacao.regra === 'VALOR_FIXO') {
       calc = calcularValorFixo({
@@ -110,7 +111,7 @@ export async function registrarCobranca(
       if (input.contadorAtual == null) {
         throw new HttpError(400, 'Contador atual é obrigatório para regra percentual');
       }
-      contadorAnterior = ultimaCobranca?.contadorAtual ?? locacao.contadorInicial;
+      contadorAnterior = ultimaCobranca?.contadorAtual ?? locacao.contadorInicial ?? 0;
       const calcPct = calcularPercentual({
         regra: locacao.regra,
         contadorAnterior,
@@ -159,7 +160,7 @@ export async function registrarCobranca(
         saldoDevedorAnterior: new Prisma.Decimal(calc.saldoDevedorAnterior),
         valorLiquidoFinal: new Prisma.Decimal(calc.valorLiquidoFinal),
         valorRecebidoPago: new Prisma.Decimal(input.valorRecebidoPago),
-        saldoResultante: new Prisma.Decimal(saldoResultante),
+        saldoResultante: new Prisma.Decimal(saldoResultante ?? '0'),
         formaPagamento: input.formaPagamento,
         statusPagamento:
           input.formaPagamento === 'PIX_MERCADO_PAGO' ? 'PENDENTE' : statusPagamento,
@@ -174,7 +175,7 @@ export async function registrarCobranca(
     await tx.locacao.update({
       where: { id: locacao.id },
       data: {
-        saldoAtual: new Prisma.Decimal(saldoResultante),
+        saldoAtual: new Prisma.Decimal(saldoResultante ?? '0'),
         version: BigInt(Date.now()),
       },
     });

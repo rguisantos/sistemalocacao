@@ -6,6 +6,7 @@ import { autenticar, exigirPermissao } from '../middleware/auth';
 import { registrarAuditoria } from '../services/audit.service';
 import { revogarTodosTokens } from '../services/auth.service';
 import { HttpError } from '../middleware/error';
+import { param } from '../utils';
 
 export const usuariosRouter = Router();
 usuariosRouter.use(autenticar, exigirPermissao(PERMISSOES.GERENCIAR_USUARIOS));
@@ -62,7 +63,7 @@ usuariosRouter.post('/', async (req, res, next) => {
 usuariosRouter.put('/:id', async (req, res, next) => {
   try {
     const input = usuarioUpdateSchema.parse(req.body);
-    const anterior = await prisma.usuario.findUnique({ where: { id: req.params.id }, include: includeUsuario });
+    const anterior = await prisma.usuario.findUnique({ where: { id: param(req.params.id) }, include: includeUsuario });
     if (!anterior || anterior.isDeleted) throw new HttpError(404, 'Usuário não encontrado');
 
     const data: any = { version: BigInt(Date.now()) };
@@ -70,22 +71,22 @@ usuariosRouter.put('/:id', async (req, res, next) => {
     if (input.ativo !== undefined) data.ativo = input.ativo;
     if (input.senha) data.senhaHash = await bcrypt.hash(input.senha, 12);
 
-    const usuario = await prisma.$transaction(async (tx) => {
+    const usuario = await prisma.$transaction(async (tx: any) => {
       if (input.permissoes) {
-        await tx.usuarioPermissao.deleteMany({ where: { usuarioId: req.params.id } });
+        await tx.usuarioPermissao.deleteMany({ where: { usuarioId: param(req.params.id) } });
         const perms = await tx.permissao.findMany({ where: { chave: { in: input.permissoes } } });
-        await tx.usuarioPermissao.createMany({ data: perms.map((p) => ({ usuarioId: req.params.id, permissaoId: p.id })) });
+        await tx.usuarioPermissao.createMany({ data: perms.map((p: any) => ({ usuarioId: param(req.params.id), permissaoId: p.id })) });
       }
       if (input.rotaIds) {
-        await tx.usuarioRota.deleteMany({ where: { usuarioId: req.params.id } });
-        await tx.usuarioRota.createMany({ data: input.rotaIds.map((rotaId) => ({ usuarioId: req.params.id, rotaId })) });
+        await tx.usuarioRota.deleteMany({ where: { usuarioId: param(req.params.id) } });
+        await tx.usuarioRota.createMany({ data: input.rotaIds.map((rotaId: string) => ({ usuarioId: param(req.params.id), rotaId })) });
       }
-      return tx.usuario.update({ where: { id: req.params.id }, data, include: includeUsuario });
+      return tx.usuario.update({ where: { id: param(req.params.id) }, data, include: includeUsuario });
     });
 
     // Segurança: troca de senha ou desativação revoga todas as sessões
     if (input.senha || input.ativo === false || input.permissoes) {
-      await revogarTodosTokens(req.params.id);
+      await revogarTodosTokens(param(req.params.id));
     }
     await registrarAuditoria({ req, acao: 'editar_usuario', entidade: 'Usuario', entidadeId: usuario.id, dadosAnteriores: sanitizar(anterior), dadosNovos: sanitizar(usuario) });
     res.json(sanitizar(usuario));
@@ -94,10 +95,10 @@ usuariosRouter.put('/:id', async (req, res, next) => {
 
 usuariosRouter.delete('/:id', async (req, res, next) => {
   try {
-    if (req.params.id === req.auth!.sub) throw new HttpError(400, 'Não é possível excluir o próprio usuário');
-    await prisma.usuario.update({ where: { id: req.params.id }, data: { isDeleted: true, ativo: false, version: BigInt(Date.now()) } });
-    await revogarTodosTokens(req.params.id);
-    await registrarAuditoria({ req, acao: 'excluir_usuario', entidade: 'Usuario', entidadeId: req.params.id });
+    if (param(req.params.id) === req.auth!.sub) throw new HttpError(400, 'Não é possível excluir o próprio usuário');
+    await prisma.usuario.update({ where: { id: param(req.params.id) }, data: { isDeleted: true, ativo: false, version: BigInt(Date.now()) } });
+    await revogarTodosTokens(param(req.params.id));
+    await registrarAuditoria({ req, acao: 'excluir_usuario', entidade: 'Usuario', entidadeId: param(req.params.id) });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

@@ -16,7 +16,8 @@
 // Resolução MANUAL (painel web):
 //  manter_servidor | aplicar_mobile | mesclar (payload campo a campo)
 // ============================================================
-import { prisma, Prisma } from '@locacoes/database';
+import { prisma } from '@locacoes/database';
+import { Prisma } from '@prisma/client';
 import { HttpError } from '../middleware/error';
 import { registrarAuditoria } from './audit.service';
 

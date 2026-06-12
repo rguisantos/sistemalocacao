@@ -10,7 +10,7 @@ import * as sinalizacaoService from '../services/sinalizacao.service';
 import * as cobrancaService from '../services/cobranca.service';
 import { criarPix } from '../services/mercadopago.service';
 import { HttpError } from '../middleware/error';
-import { json } from '../utils';
+import { json, param } from '../utils';
 import { z } from 'zod';
 
 export const locacoesRouter = Router();
@@ -49,14 +49,14 @@ locacoesRouter.post('/', exigirPermissao(PERMISSOES.CRIAR_EDITAR_LOCACAO), async
 // Resposta inclui se OUTRO usuário também está com a locação aberta.
 locacoesRouter.post('/:id/sinalizar-cobranca', async (req, res, next) => {
   try {
-    const r = await sinalizacaoService.sinalizarCobranca(req.params.id, req.auth!.sub);
+    const r = await sinalizacaoService.sinalizarCobranca(param(req.params.id), req.auth!.sub);
     res.json(r);
   } catch (e) { next(e); }
 });
 
 locacoesRouter.delete('/:id/sinalizar-cobranca', async (req, res, next) => {
   try {
-    await sinalizacaoService.liberarSinalizacao(req.params.id, req.auth!.sub);
+    await sinalizacaoService.liberarSinalizacao(param(req.params.id), req.auth!.sub);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -73,7 +73,7 @@ locacoesRouter.put('/:id', async (req, res, next) => {
       contadorAtual: z.number().int().min(0).nullable().optional(),
     }).parse(req.body);
     const locacao = await locacaoService.editarLocacao(
-      req.auth!.sub, req.params.id, input, req.auth!.permissoes
+      req.auth!.sub, param(req.params.id), input, req.auth!.permissoes
     );
     res.json(json(locacao));
   } catch (e) { next(e); }
@@ -88,7 +88,7 @@ locacoesRouter.post('/:id/finalizar', async (req, res, next) => {
     if (!req.auth!.permissoes.includes(perm)) {
       throw new HttpError(403, 'Permissão insuficiente');
     }
-    const resultado = await locacaoService.finalizarLocacao(req.auth!.sub, req.params.id, tipo, depositoId);
+    const resultado = await locacaoService.finalizarLocacao(req.auth!.sub, param(req.params.id), tipo, depositoId);
     res.json(json(resultado));
   } catch (e) { next(e); }
 });
@@ -102,20 +102,20 @@ locacoesRouter.post('/:id/calcular', exigirPermissao(PERMISSOES.REGISTRAR_COBRAN
       acrescimo: z.string().optional(),
       descontoValorReceber: z.string().optional(),
     }).parse(req.body);
-    res.json(await cobrancaService.preverCobranca(req.params.id, params));
+    res.json(await cobrancaService.preverCobranca(param(req.params.id), params));
   } catch (e) { next(e); }
 });
 
 // Registrar cobrança
 locacoesRouter.post('/:id/cobrancas', exigirPermissao(PERMISSOES.REGISTRAR_COBRANCA), async (req, res, next) => {
   try {
-    const input = cobrancaCreateSchema.parse({ ...req.body, locacaoId: req.params.id });
+    const input = cobrancaCreateSchema.parse({ ...req.body, locacaoId: param(req.params.id) });
     if (input.trocaPano && !req.auth!.permissoes.includes(PERMISSOES.MARCAR_TROCA_PANO)) {
       throw new HttpError(403, 'Sem permissão para marcar troca de pano');
     }
     const { cobranca, calc, alerta, duplicada } = await cobrancaService.registrarCobranca(
       req.auth!.sub, input, { ip: req.ip }
-    );
+    ) as any;
 
     // PIX Mercado Pago: gera cobrança imediatamente
     let pix = null;
@@ -130,7 +130,7 @@ locacoesRouter.post('/:id/cobrancas', exigirPermissao(PERMISSOES.REGISTRAR_COBRA
 locacoesRouter.get('/:id/cobrancas', async (req, res, next) => {
   try {
     const cobrancas = await prisma.cobranca.findMany({
-      where: { locacaoId: req.params.id, isDeleted: false },
+      where: { locacaoId: param(req.params.id), isDeleted: false },
       include: { usuario: { select: { nome: true } } },
       orderBy: { dataCobranca: 'desc' },
     });
@@ -164,7 +164,7 @@ locacoesRouter.post('/saldos/:saldoId/pagamentos', exigirPermissao(PERMISSOES.RE
   try {
     const input = pagamentoSaldoSchema.parse(req.body);
     const resultado = await locacaoService.pagarSaldoDevedor(
-      req.auth!.sub, req.params.saldoId, input.valor, input.formaPagamento, input.observacoes
+      req.auth!.sub, param(req.params.saldoId), input.valor, input.formaPagamento, input.observacoes
     );
     res.status(201).json(json(resultado));
   } catch (e) { next(e); }

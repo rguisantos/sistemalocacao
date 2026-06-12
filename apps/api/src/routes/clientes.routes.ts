@@ -4,7 +4,7 @@ import { clienteSchema, enderecoSchema, PERMISSOES } from '@locacoes/shared';
 import { autenticar, exigirPermissao, verificarAcessoRota } from '../middleware/auth';
 import { registrarAuditoria } from '../services/audit.service';
 import { HttpError } from '../middleware/error';
-import { json } from '../utils';
+import { json, param } from '../utils';
 import { z } from 'zod';
 
 export const clientesRouter = Router();
@@ -46,7 +46,7 @@ clientesRouter.get('/', async (req, res, next) => {
 clientesRouter.get('/:id', async (req, res, next) => {
   try {
     const cliente = await prisma.cliente.findUnique({
-      where: { id: req.params.id },
+      where: { id: param(req.params.id) },
       include: {
         enderecos: { where: { isDeleted: false } },
         rota: true,
@@ -85,7 +85,7 @@ clientesRouter.post('/', exigirPermissao(PERMISSOES.GERENCIAR_CLIENTES), async (
 clientesRouter.put('/:id', exigirPermissao(PERMISSOES.GERENCIAR_CLIENTES), async (req, res, next) => {
   try {
     const input = clienteSchema.partial().parse(req.body);
-    const anterior = await prisma.cliente.findUnique({ where: { id: req.params.id } });
+    const anterior = await prisma.cliente.findUnique({ where: { id: param(req.params.id) } });
     if (!anterior || anterior.isDeleted) throw new HttpError(404, 'Cliente não encontrado');
 
     // Transferência de rota exige permissão específica
@@ -95,10 +95,10 @@ clientesRouter.put('/:id', exigirPermissao(PERMISSOES.GERENCIAR_CLIENTES), async
       }
     }
     const cliente = await prisma.cliente.update({
-      where: { id: req.params.id },
+      where: { id: param(req.params.id) },
       data: { ...input, telefones: input.telefones as any, version: BigInt(Date.now()) },
     });
-    await registrarAuditoria({ req, acao: 'editar_cliente', entidade: 'Cliente', entidadeId: cliente.id, dadosAnteriores: json(anterior), dadosNovos: input });
+    await registrarAuditoria({ req, acao: 'editar_cliente', entidade: 'Cliente', entidadeId: param(req.params.id), dadosAnteriores: json(anterior), dadosNovos: input });
     res.json(json(cliente));
   } catch (e) { next(e); }
 });
@@ -107,7 +107,7 @@ clientesRouter.post('/:id/enderecos', exigirPermissao(PERMISSOES.GERENCIAR_CLIEN
   try {
     const input = enderecoSchema.parse(req.body);
     const endereco = await prisma.endereco.create({
-      data: { ...input, clienteId: req.params.id, version: BigInt(Date.now()) },
+      data: { ...input, clienteId: param(req.params.id), version: BigInt(Date.now()) },
     });
     res.status(201).json(json(endereco));
   } catch (e) { next(e); }
@@ -115,10 +115,10 @@ clientesRouter.post('/:id/enderecos', exigirPermissao(PERMISSOES.GERENCIAR_CLIEN
 
 clientesRouter.delete('/:id', exigirPermissao(PERMISSOES.GERENCIAR_CLIENTES), async (req, res, next) => {
   try {
-    const ativas = await prisma.locacao.count({ where: { clienteId: req.params.id, status: 'ATIVA', isDeleted: false } });
+    const ativas = await prisma.locacao.count({ where: { clienteId: param(req.params.id), status: 'ATIVA', isDeleted: false } });
     if (ativas > 0) throw new HttpError(409, 'Cliente possui locações ativas');
-    await prisma.cliente.update({ where: { id: req.params.id }, data: { isDeleted: true, version: BigInt(Date.now()) } });
-    await registrarAuditoria({ req, acao: 'excluir_cliente', entidade: 'Cliente', entidadeId: req.params.id });
+    await prisma.cliente.update({ where: { id: param(req.params.id) }, data: { isDeleted: true, version: BigInt(Date.now()) } });
+    await registrarAuditoria({ req, acao: 'excluir_cliente', entidade: 'Cliente', entidadeId: param(req.params.id) });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

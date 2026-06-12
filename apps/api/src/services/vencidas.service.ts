@@ -62,7 +62,7 @@ export async function listarVencidas(opts: {
     let valorEstimado: string | null = null;
 
     if (l.regra === 'VALOR_FIXO') {
-      limite = DIAS_FREQUENCIA[l.frequencia!];
+      limite = DIAS_FREQUENCIA[l.frequencia! as keyof typeof DIAS_FREQUENCIA];
       if (diasSemCobranca <= limite) continue;
       const periodos = Math.max(1, Math.ceil(diasSemCobranca / limite));
       valorEstimado = arredondar(D(l.valorFixo!.toFixed(2)).mul(periodos)).toFixed(2);

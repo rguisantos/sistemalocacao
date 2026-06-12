@@ -1,7 +1,7 @@
-import { prisma, Prisma } from '@locacoes/database';
+import { prisma } from '@locacoes/database';
 import { Request } from 'express';
 
-export async function registrarAuditoria(opts: {
+export interface AuditoriaOpts {
   req?: Request;
   usuarioId?: string | null;
   acao: string;
@@ -9,7 +9,10 @@ export async function registrarAuditoria(opts: {
   entidadeId?: string | null;
   dadosAnteriores?: unknown;
   dadosNovos?: unknown;
-}) {
+  ip?: string | undefined;
+}
+
+export async function registrarAuditoria(opts: AuditoriaOpts) {
   try {
     await prisma.logAuditoria.create({
       data: {
@@ -17,9 +20,9 @@ export async function registrarAuditoria(opts: {
         acao: opts.acao,
         entidade: opts.entidade,
         entidadeId: opts.entidadeId ?? null,
-        dadosAnteriores: (opts.dadosAnteriores as Prisma.InputJsonValue) ?? undefined,
-        dadosNovos: (opts.dadosNovos as Prisma.InputJsonValue) ?? undefined,
-        ip: opts.req?.ip ?? null,
+        dadosAnteriores: opts.dadosAnteriores as any ?? undefined,
+        dadosNovos: opts.dadosNovos as any ?? undefined,
+        ip: opts.ip ?? opts.req?.ip ?? null,
         userAgent: opts.req?.headers['user-agent'] ?? null,
       },
     });

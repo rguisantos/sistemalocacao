@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { prisma, Prisma } from '@locacoes/database';
+import { prisma } from '@locacoes/database';
+import { Prisma } from '@prisma/client';
 import { PERMISSOES } from '@locacoes/shared';
 import { autenticar, exigirPermissao } from '../middleware/auth';
-import { json } from '../utils';
+import { json, param } from '../utils';
 import { HttpError } from '../middleware/error';
 import PDFDocument from 'pdfkit';
 import { z } from 'zod';
@@ -223,7 +224,7 @@ relatoriosRouter.get('/flexivel.pdf', exigirPermissao(PERMISSOES.EXPORTAR_RELATO
 relatoriosRouter.get('/historico-produto/:produtoId', exigirPermissao(PERMISSOES.VISUALIZAR_RELATORIOS), async (req, res, next) => {
   try {
     const locacoes = await prisma.locacao.findMany({
-      where: { produtoId: req.params.produtoId, isDeleted: false },
+      where: { produtoId: param(req.params.produtoId), isDeleted: false },
       include: {
         cliente: { select: { nome: true } },
         endereco: { select: { logradouro: true, numero: true, bairro: true } },
@@ -234,13 +235,13 @@ relatoriosRouter.get('/historico-produto/:produtoId', exigirPermissao(PERMISSOES
     });
     const totais = await prisma.cobranca.groupBy({
       by: ['locacaoId'],
-      where: { locacao: { produtoId: req.params.produtoId }, isDeleted: false },
+      where: { locacao: { produtoId: param(req.params.produtoId) }, isDeleted: false },
       _sum: { valorRecebidoPago: true },
     });
     const mapaTotais = Object.fromEntries(
-      totais.map((t) => [t.locacaoId, t._sum.valorRecebidoPago?.toFixed(2) ?? '0.00'])
+      totais.map((t: any) => [t.locacaoId, t._sum?.valorRecebidoPago?.toFixed(2) ?? '0.00'])
     );
-    res.json(json(locacoes.map((l) => ({ ...l, totalRecebido: mapaTotais[l.id] ?? '0.00' }))));
+    res.json(json(locacoes.map((l: any) => ({ ...l, totalRecebido: mapaTotais[l.id] ?? '0.00' }))));
   } catch (e) { next(e); }
 });
 
@@ -248,7 +249,7 @@ relatoriosRouter.get('/historico-produto/:produtoId', exigirPermissao(PERMISSOES
 relatoriosRouter.get('/extrato-cliente/:clienteId', exigirPermissao(PERMISSOES.VISUALIZAR_RELATORIOS), async (req, res, next) => {
   try {
     const cobrancas = await prisma.cobranca.findMany({
-      where: { locacao: { clienteId: req.params.clienteId }, isDeleted: false },
+      where: { locacao: { clienteId: param(req.params.clienteId) }, isDeleted: false },
       include: {
         locacao: { include: { produto: { select: { plaqueta: true } } } },
         usuario: { select: { nome: true } },

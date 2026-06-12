@@ -3,7 +3,7 @@ import { prisma } from '@locacoes/database';
 import { PERMISSOES } from '@locacoes/shared';
 import { autenticar, exigirPermissao } from '../middleware/auth';
 import * as conflitoService from '../services/conflito.service';
-import { json } from '../utils';
+import { json, param } from '../utils';
 import { z } from 'zod';
 
 export const conflitosRouter = Router();
@@ -52,7 +52,7 @@ conflitosRouter.post('/:id/resolver', async (req, res, next) => {
     }).parse(req.body);
 
     const resultado = await conflitoService.resolverConflito(
-      req.params.id, resolucao, req.auth!.sub, camposMesclados
+      param(req.params.id), resolucao, req.auth!.sub, camposMesclados
     );
     res.json(json(resultado));
   } catch (e) { next(e); }

@@ -4,7 +4,7 @@ import { produtoSchema, PERMISSOES } from '@locacoes/shared';
 import { autenticar, exigirPermissao } from '../middleware/auth';
 import { registrarAuditoria } from '../services/audit.service';
 import { HttpError } from '../middleware/error';
-import { json } from '../utils';
+import { json, param } from '../utils';
 import { z } from 'zod';
 
 export const cadastrosRouter = Router();
@@ -67,9 +67,9 @@ cadastrosRouter.post('/produtos', exigirPermissao(PERMISSOES.GERENCIAR_PRODUTOS)
 cadastrosRouter.put('/produtos/:id', exigirPermissao(PERMISSOES.GERENCIAR_PRODUTOS), async (req, res, next) => {
   try {
     const input = produtoSchema.partial().parse(req.body);
-    const anterior = await prisma.produto.findUnique({ where: { id: req.params.id } });
+    const anterior = await prisma.produto.findUnique({ where: { id: param(req.params.id) } });
     if (!anterior || anterior.isDeleted) throw new HttpError(404, 'Produto não encontrado');
-    const produto = await prisma.produto.update({ where: { id: req.params.id }, data: { ...input, version: BigInt(Date.now()) } });
+    const produto = await prisma.produto.update({ where: { id: param(req.params.id) }, data: { ...input, version: BigInt(Date.now()) } });
     await registrarAuditoria({ req, acao: 'editar_produto', entidade: 'Produto', entidadeId: produto.id, dadosAnteriores: json(anterior), dadosNovos: input });
     res.json(json(produto));
   } catch (e) { next(e); }
@@ -96,7 +96,7 @@ for (const [path, cfg] of Object.entries(auxConfig)) {
   });
   cadastrosRouter.delete(`/${path}/:id`, exigirPermissao(cfg.perm), async (req, res, next) => {
     try {
-      await model().update({ where: { id: req.params.id }, data: { ativo: false } });
+      await model().update({ where: { id: param(req.params.id) }, data: { ativo: false } });
       res.json({ ok: true });
     } catch (e) { next(e); }
   });

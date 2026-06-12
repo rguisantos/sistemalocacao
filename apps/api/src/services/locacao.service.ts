@@ -1,5 +1,6 @@
 // apps/api/src/services/locacao.service.ts
-import { prisma, Prisma } from '@locacoes/database';
+import { prisma } from '@locacoes/database';
+import { Prisma } from '@prisma/client';
 import type { LocacaoCreateInput } from '@locacoes/shared';
 import { HttpError } from '../middleware/error';
 import { registrarAuditoria } from './audit.service';
@@ -15,7 +16,7 @@ export async function criarLocacao(
     if (existente) return existente; // retry de sync: já criada
   }
 
-  const locacao = await prisma.$transaction(async (tx) => {
+  const locacao = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // Produto disponível? (sem locação ativa)
     const locacaoAtiva = await tx.locacao.findFirst({
       where: { produtoId: input.produtoId, status: 'ATIVA', isDeleted: false },
@@ -125,7 +126,7 @@ export async function editarLocacao(
     if (!percentualFinal) throw new HttpError(400, 'Percentual é obrigatório');
   }
 
-  const locacao = await prisma.$transaction(async (tx) => {
+  const locacao = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const atualizada = await tx.locacao.update({
       where: { id: locacaoId },
       data: {
@@ -182,7 +183,7 @@ export async function finalizarLocacao(
     throw new HttpError(400, 'Depósito de destino é obrigatório');
   }
 
-  const resultado = await prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const locacao = await tx.locacao.findUnique({ where: { id: locacaoId } });
     if (!locacao || locacao.isDeleted) throw new HttpError(404, 'Locação não encontrada');
     if (locacao.status !== 'ATIVA') throw new HttpError(400, 'Locação já finalizada');
@@ -239,7 +240,7 @@ export async function pagarSaldoDevedor(
   formaPagamento: 'DINHEIRO' | 'PIX_MANUAL' | 'CARTAO' | 'PIX_MERCADO_PAGO',
   observacoes?: string | null
 ) {
-  const resultado = await prisma.$transaction(async (tx) => {
+  const resultado = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const saldo = await tx.saldoDevedorLocacao.findUnique({ where: { id: saldoId } });
     if (!saldo || saldo.isDeleted) throw new HttpError(404, 'Saldo devedor não encontrado');
     if (saldo.status === 'QUITADO') throw new HttpError(400, 'Saldo já quitado');

@@ -1,7 +1,8 @@
 // apps/api/src/services/mercadopago.service.ts
 import crypto from 'crypto';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { prisma, Prisma } from '@locacoes/database';
+import { prisma } from '@locacoes/database';
+import { Prisma } from '@prisma/client';
 import { env } from '../config/env';
 import { HttpError } from '../middleware/error';
 import { D, calcularSaldoResultante, determinarStatusPagamento } from '@locacoes/shared';
@@ -129,7 +130,7 @@ export async function processarWebhookPagamento(paymentId: string) {
       valorPago
     );
 
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.cobranca.update({
         where: { id: cobrancaId },
         data: {
@@ -149,7 +150,7 @@ export async function processarWebhookPagamento(paymentId: string) {
       acao: 'pix_confirmado',
       entidade: 'Cobranca',
       entidadeId: cobrancaId,
-      dadosNovos: { pixId: paymentId, valor: valorPago.toFixed(2) },
+      dadosNovos: { pixId: paymentId, valor: String(valorPago) },
     });
   }
 }
