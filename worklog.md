@@ -112,3 +112,56 @@ Stage Summary:
 - Babel config simplified: only babel-preset-expo (SDK 52 includes Reanimated plugin automatically)
 - OTA update published — user should close and reopen the app on device to download the fix
 - If crash persists, next step is adb logcat to get the exact exception
+
+---
+Task ID: 9
+Agent: main
+Task: Fix CI — package-lock.json desync causing npm ci to fail
+
+Work Log:
+- CI failed with "Missing: scheduler@0.23.2 from lock file" and other packages
+- Root cause: package-lock.json was desynced from package.json after the git rebase
+- Deleted package-lock.json and ran `npm install` to regenerate from scratch
+- Verified `npm ci --dry-run` passes
+- Committed and pushed (f5a2049)
+
+Stage Summary:
+- package-lock.json fully regenerated — CI npm ci should pass
+
+---
+Task ID: 10
+Agent: main
+Task: Fix CI — turbo.json "extends" key not recognized by CI's Turborepo version
+
+Work Log:
+- CI failed with turbo_json_parse_error: unknown key `extends` in turbo.json
+- Root cause: workspace turbo.json files used `extends: ["//"]` which is Turborepo ≥2.4 feature, but CI used older version
+- Removed apps/api/turbo.json and apps/mobile/turbo.json (they added nothing beyond root config)
+- Simplified root turbo.json to just `{ "tasks": { "build": { "outputs": [] } } }`
+- Verified locally with `npx turbo run build --dry=json` — passes
+- Committed and pushed (2a56e66)
+
+Stage Summary:
+- turbo.json simplified — no more "extends" key
+- CI should pass turbo parsing now
+
+---
+Task ID: 11
+Agent: main
+Task: Fix mobile crash — install missing expo-linking native module
+
+Work Log:
+- User ran adb logcat and got the exact error: "Cannot find native module 'ExpoLinking'"
+- expo-router uses expo-linking for deep links, but the package was never in dependencies
+- In dev, Metro tolerates the missing module; in release APK, the native module is absent → crash
+- Added expo-linking ~7.0.5 (SDK 52) to apps/mobile/package.json
+- Ran npm install, verified with npm ls expo-linking
+- Committed and pushed (bc9daa6)
+- Started EAS native build (required — expo-linking is a native module, not fixable via OTA)
+- Build URL: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/9672ddaf-c35c-421d-bef1-b378dabb3f32
+
+Stage Summary:
+- expo-linking ~7.0.5 added — the ONLY missing native module per import scan
+- EAS build in progress (native module = needs rebuild, not OTA)
+- After this build, if successful, app should boot to login screen
+- Future JS-only fixes go via `eas update --branch preview`
