@@ -10,6 +10,11 @@
     "noEmit": true,
     "allowJs": true,
     "incremental": true,
+    "skipLibCheck": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "../../node_modules/@types"
+    ],
     "plugins": [
       {
         "name": "next"
