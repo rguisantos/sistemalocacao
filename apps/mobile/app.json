@@ -50,6 +50,12 @@
         "origin": false
       }
     },
-    "owner": "rguisantoss"
+    "owner": "rguisantoss",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    }
   }
 }

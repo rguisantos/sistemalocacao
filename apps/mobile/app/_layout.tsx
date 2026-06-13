@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { StatusBar } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Stack } from 'expo-router';
 import { inicializarBanco, migrarBanco } from '../src/db/schema';
 import { registrarSyncBackground } from '../src/services/backgroundSync';
@@ -56,8 +57,10 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <ProvedorTema>
-      <StackTematizado />
-    </ProvedorTema>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ProvedorTema>
+        <StackTematizado />
+      </ProvedorTema>
+    </GestureHandlerRootView>
   );
 }
