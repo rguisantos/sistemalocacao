@@ -31,7 +31,8 @@ function carregarModulo(): ModuloBluetooth | null {
   } catch {
     modulo = null; // lib não instalada (Expo Go / build sem o módulo)
   }
-  return modulo;
+  // ?? null: o TS não estreita `let` de escopo de módulo após o try/catch
+  return modulo ?? null;
 }
 
 let enderecoImpressora: string | null = null;
