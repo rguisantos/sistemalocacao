@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "cd ../.. && npm ci && npx prisma generate --schema packages/database/prisma/schema.prisma"
+}

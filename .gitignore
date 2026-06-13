@@ -24,3 +24,4 @@ coverage
 # Empacotamento
 *.tar.gz
 tool-results/
+.vercel
