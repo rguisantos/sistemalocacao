@@ -1,0 +1,109 @@
+From 7f0338d5e38c3da6507622e001dc95150a3d2cb5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Fri, 12 Jun 2026 23:49:18 +0000
+Subject: [PATCH] =?UTF-8?q?fix(build):=20uma=20=C3=BAnica=20c=C3=B3pia=20d?=
+ =?UTF-8?q?o=20React=20para=20o=20painel=20(prerender=20/404)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+O prerender quebrava com 'Cannot read properties of null (useContext)':
+clássico de DUAS cópias do React no monorepo — mobile (Expo 52) usa
+react 18.3.1 e web (Next 15) usa react 19; o npm içava o 18 para a
+raiz e as libs compartilhadas do painel (next-themes, react-query)
+resolviam essa cópia, divergindo do react 19 do Next.
+
+- raiz: react/react-dom ^19 em devDependencies — deps diretas da raiz
+  têm prioridade de hoisting; o 18.3.1 aninha em apps/mobile (onde o
+  Metro o resolve primeiro, comportamento correto para o Expo)
+- web/tsconfig: isolatedModules true (o Next alterava no CI sem
+  commitar; agora é reproduzível)
+- apps/api/turbo.json: outputs [] (build é tsc --noEmit — remove o
+  warning 'no output files found')
+
+Após aplicar: npm install (re-hoisting) e commitar o package-lock.
+---
+ apps/api/turbo.json    |  8 ++++++++
+ apps/web/tsconfig.json | 32 ++++++++++++++++++++++++++------
+ package.json           |  4 +++-
+ 3 files changed, 37 insertions(+), 7 deletions(-)
+ create mode 100644 apps/api/turbo.json
+
+diff --git a/apps/api/turbo.json b/apps/api/turbo.json
+new file mode 100644
+index 0000000..d7c7d48
+--- /dev/null
++++ b/apps/api/turbo.json
+@@ -0,0 +1,8 @@
++{
++  "extends": ["//"],
++  "tasks": {
++    "build": {
++      "outputs": []
++    }
++  }
++}
+diff --git a/apps/web/tsconfig.json b/apps/web/tsconfig.json
+index 60e78e4..4a24a36 100644
+--- a/apps/web/tsconfig.json
++++ b/apps/web/tsconfig.json
+@@ -1,14 +1,34 @@
+ {
+   "extends": "../../tsconfig.json",
+   "compilerOptions": {
+-    "lib": ["dom", "dom.iterable", "esnext"],
++    "lib": [
++      "dom",
++      "dom.iterable",
++      "esnext"
++    ],
+     "jsx": "preserve",
+     "noEmit": true,
+     "allowJs": true,
+     "incremental": true,
+-    "plugins": [{ "name": "next" }],
+-    "paths": { "@/*": ["./src/*"] }
++    "plugins": [
++      {
++        "name": "next"
++      }
++    ],
++    "paths": {
++      "@/*": [
++        "./src/*"
++      ]
++    },
++    "isolatedModules": true
+   },
+-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+-  "exclude": ["node_modules"]
+-}
++  "include": [
++    "next-env.d.ts",
++    "**/*.ts",
++    "**/*.tsx",
++    ".next/types/**/*.ts"
++  ],
++  "exclude": [
++    "node_modules"
++  ]
++}
+\ No newline at end of file
+diff --git a/package.json b/package.json
+index a8a89f9..9dac730 100644
+--- a/package.json
++++ b/package.json
+@@ -26,7 +26,9 @@
+     "turbo": "^2.3.3",
+     "typescript": "^5.7.2",
+     "prettier": "^3.4.2",
+-    "@types/node": "^22.10.2"
++    "@types/node": "^22.10.2",
++    "react": "^19.0.0",
++    "react-dom": "^19.0.0"
+   },
+   "engines": {
+     "node": ">=20.0.0",
+-- 
+2.43.0
+
