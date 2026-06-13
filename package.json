@@ -33,5 +33,37 @@
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "overrides": {
+    "react-native": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    },
+    "react-native-reanimated": {
+      "react": "18.3.1"
+    },
+    "react-native-gesture-handler": {
+      "react": "18.3.1"
+    },
+    "react-native-screens": {
+      "react": "18.3.1"
+    },
+    "react-native-safe-area-context": {
+      "react": "18.3.1"
+    },
+    "expo-router": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    },
+    "@react-navigation/core": {
+      "react": "18.3.1"
+    },
+    "@react-navigation/native": {
+      "react": "18.3.1"
+    },
+    "react-helmet-async": {
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
+    }
   }
 }
