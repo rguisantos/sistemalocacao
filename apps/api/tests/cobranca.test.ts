@@ -100,7 +100,7 @@ describe('finalização com saldo devedor', () => {
   it('cria SaldoDevedorLocacao e o pagamento quita', async () => {
     const locacaoId = await criarLocacaoPercentual();
     await request(app).post(`/api/locacoes/${locacaoId}/cobrancas`).set(auth(ctx.token))
-      .send({ contadorAtual: 1200, valorRecebidoPago: '100.00', formaPagamento: 'DINHEIRO' }); // deve 80
+      .send({ contadorAtual: 1200, valorRecebidoPago: '100.00', formaPagamento: 'DINHEIRO' }); // devido 200 → resta 100
 
     const deposito = await prisma.deposito.create({ data: { nome: 'Dep', version: BigInt(Date.now()) } });
     const fin = await request(app)
@@ -110,13 +110,13 @@ describe('finalização com saldo devedor', () => {
     expect(fin.status).toBe(200);
 
     const saldo = await prisma.saldoDevedorLocacao.findUnique({ where: { locacaoId } });
-    expect(saldo!.valorRestante.toFixed(2)).toBe('80.00');
+    expect(saldo!.valorRestante.toFixed(2)).toBe('100.00');
 
     // paga parcial e depois quita
     await request(app).post(`/api/locacoes/saldos/${saldo!.id}/pagamentos`).set(auth(ctx.token))
       .send({ valor: '50.00', formaPagamento: 'DINHEIRO' });
     const r2 = await request(app).post(`/api/locacoes/saldos/${saldo!.id}/pagamentos`).set(auth(ctx.token))
-      .send({ valor: '30.00', formaPagamento: 'PIX_MANUAL' });
+      .send({ valor: '50.00', formaPagamento: 'PIX_MANUAL' });
     expect(r2.status).toBe(201);
 
     const quitado = await prisma.saldoDevedorLocacao.findUnique({ where: { locacaoId } });

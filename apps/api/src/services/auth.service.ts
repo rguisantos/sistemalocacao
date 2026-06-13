@@ -95,14 +95,20 @@ export async function refresh(refreshToken: string): Promise<AuthResponse> {
     throw new HttpError(401, 'Refresh token inválido ou expirado');
   }
 
-  // SEGURANÇA: reuso de token já rotacionado = forte indício de token
+  // Revogação DURA (logout, troca de senha, desativação, reuso suspeito):
+  // NUNCA tem janela de tolerância — 401 imediato.
+  if (stored.revokedAt) {
+    throw new HttpError(401, 'Sessão inválida. Faça login novamente.');
+  }
+
+  // SEGURANÇA: reuso de token já ROTACIONADO = forte indício de token
   // vazado/roubado. Revoga TODAS as sessões do usuário e audita.
   // EXCEÇÃO: janela de tolerância de 60s cobre corridas legítimas
   // (múltiplas abas do painel, retry de rede após timeout).
   const GRACE_MS = 60_000;
-  if (stored.revokedAt && Date.now() - stored.revokedAt.getTime() < GRACE_MS) {
+  if (stored.rotatedAt && Date.now() - stored.rotatedAt.getTime() < GRACE_MS) {
     // corrida benigna: segue o fluxo normal e emite novos tokens
-  } else if (stored.revokedAt) {
+  } else if (stored.rotatedAt) {
     await revogarTodosTokens(stored.usuarioId);
     await registrarAuditoria({
       usuarioId: stored.usuarioId,
@@ -117,10 +123,10 @@ export async function refresh(refreshToken: string): Promise<AuthResponse> {
     throw new HttpError(401, 'Usuário inativo');
   }
 
-  // Rotação: revoga o token usado e emite novo
+  // Rotação: marca o token usado como rotacionado e emite novo
   await prisma.refreshToken.update({
     where: { id: stored.id },
-    data: { revokedAt: new Date() },
+    data: { rotatedAt: new Date() },
   });
 
   const dto = montarUsuarioDTO(stored.usuario);
@@ -136,7 +142,8 @@ export async function logout(refreshToken: string): Promise<void> {
   });
 }
 
-/** Revoga TODOS os tokens de um usuário (ex.: troca de senha, desativação) */
+/** Revogação DURA de todos os tokens (troca de senha, desativação, reuso
+ *  suspeito). Inclui tokens já rotacionados: nada do usuário sobrevive. */
 export async function revogarTodosTokens(usuarioId: string): Promise<void> {
   await prisma.refreshToken.updateMany({
     where: { usuarioId, revokedAt: null },

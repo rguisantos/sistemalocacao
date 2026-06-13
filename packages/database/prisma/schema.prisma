@@ -94,7 +94,8 @@ model RefreshToken {
   token      String   @unique
   usuarioId  String   @map("usuario_id")
   expiresAt  DateTime @map("expires_at")
-  revokedAt  DateTime? @map("revoked_at")
+  rotatedAt  DateTime? @map("rotated_at")   // usado e substituído (reuso em 60s = corrida benigna)
+  revokedAt  DateTime? @map("revoked_at")   // revogação DURA: logout, troca de senha, reuso suspeito — sem janela
   createdAt  DateTime @default(now()) @map("created_at")
 
   usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)

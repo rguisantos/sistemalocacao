@@ -61,10 +61,10 @@ describe('POST /api/auth/refresh — rotação e reuso', () => {
 
   it('reuso FORA da janela revoga todas as sessões e audita', async () => {
     await request(app).post('/api/auth/refresh').send({ refreshToken: ctx.refreshToken });
-    // envelhece a revogação para fora do grace de 60s
+    // envelhece a rotação para fora do grace de 60s
     await prisma.refreshToken.updateMany({
-      where: { usuarioId: ctx.usuarioId, revokedAt: { not: null } },
-      data: { revokedAt: new Date(Date.now() - 120_000) },
+      where: { usuarioId: ctx.usuarioId, rotatedAt: { not: null } },
+      data: { rotatedAt: new Date(Date.now() - 120_000) },
     });
 
     const reuso = await request(app).post('/api/auth/refresh').send({ refreshToken: ctx.refreshToken });
