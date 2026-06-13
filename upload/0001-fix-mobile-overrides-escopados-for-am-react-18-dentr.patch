@@ -1,0 +1,66 @@
+From 915b6a55482cc3f79463bcb77845bff356e15eac Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 15:42:19 +0000
+Subject: [PATCH] =?UTF-8?q?fix(mobile):=20overrides=20escopados=20for?=
+ =?UTF-8?q?=C3=A7am=20react@18=20dentro=20do=20react-native?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A tentativa anterior (extraNodeModules no Metro) corrigia o react que o
+CÓDIGO DO APP resolve, mas não o que o react-native resolve
+INTERNAMENTE: o react-native está içado na raiz do monorepo e lá
+encontra o react@19 (do web) içado como irmão, resolvendo-o em vez do
+react@18.3.1 aninhado no app. Duas cópias → ReactCurrentDispatcher
+undefined persistia.
+
+- package.json raiz: overrides ESCOPADOS forçando react 18.3.1 dentro
+  de react-native, reanimated, gesture-handler, screens,
+  safe-area-context e expo-router. Não afeta o web, que resolve
+  react@19 fora desse escopo.
+- metro.config.js do commit anterior permanece (resolve @locacoes/
+  shared e o react do código do app)
+
+Exige npm install (re-resolve overrides) + novo build.
+
+NOTA: se persistir, o próximo passo é inverter o hoisting — declarar
+react@18.3.1 na raiz e mover o react@19 para dentro do apps/web — mas
+os overrides escopados são a correção canônica do npm para isto.
+---
+ package.json | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/package.json b/package.json
+index 9dac730..106ab34 100644
+--- a/package.json
++++ b/package.json
+@@ -33,5 +33,25 @@
+   "engines": {
+     "node": ">=20.0.0",
+     "npm": ">=10.0.0"
++  },
++  "overrides": {
++    "react-native": {
++      "react": "18.3.1"
++    },
++    "react-native-reanimated": {
++      "react": "18.3.1"
++    },
++    "react-native-gesture-handler": {
++      "react": "18.3.1"
++    },
++    "react-native-screens": {
++      "react": "18.3.1"
++    },
++    "react-native-safe-area-context": {
++      "react": "18.3.1"
++    },
++    "expo-router": {
++      "react": "18.3.1"
++    }
+   }
+ }
+\ No newline at end of file
+-- 
+2.43.0
+

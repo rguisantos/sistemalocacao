@@ -188,3 +188,26 @@ Stage Summary:
 - metro.config.js created for monorepo + React dedupe
 - No native modules changed — native layer should reuse cache, only the JS bundle changes
 - Build in progress
+
+---
+Task ID: 13
+Agent: main
+Task: Fix React dedupe — resolveRequest in Metro + expanded npm overrides
+
+Work Log:
+- Previous extraNodeModules approach failed because:
+  1. react-native doesn't exist at apps/mobile/node_modules/react-native (it's hoisted to root) — pointing to non-existent path silently fails
+  2. extraNodeModules only affects top-level require() calls; react inside react-native still resolved react@19 from root
+- Discovered react-dom@18.3.1 nested under node_modules/expo-router/node_modules/react-dom (needed by react-helmet-async), plus react-dom@19.2.7 hoisted at root
+- Updated metro.config.js with two-layer approach:
+  - extraNodeModules: removed react-native (doesn't exist locally), added react-dom pointing to the 18.3.1 copy under expo-router
+  - resolveRequest: intercepts ALL react/react-dom resolutions (including from within react-native) and forces resolution from the app's directory where react@18.3.1 is local
+- Expanded npm overrides to cover: react-dom under react-native and expo-router, @react-navigation/core, @react-navigation/native, react-helmet-async
+- Committed and pushed (88d77da)
+- Started EAS build: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/2aa012d4-0e20-4a4f-b8d8-265c1139c358
+
+Stage Summary:
+- resolveRequest in Metro is the key fix — it operates at the bundler level and doesn't depend on npm hoisting
+- npm overrides are a secondary measure (limited by npm's scoped override mechanism)
+- If resolveRequest works, the bundle will have only one copy of React (18.3.1)
+- Plan B if this fails: invert hoisting (react@18.3.1 at root, react@19 nested for web)
