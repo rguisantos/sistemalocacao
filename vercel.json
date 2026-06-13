@@ -1,0 +1,7 @@
+{
+  "buildCommand": "npx prisma generate --schema packages/database/prisma/schema.prisma && npm run build -w web",
+  "outputDirectory": "apps/web/.next",
+  "installCommand": "npm ci",
+  "framework": null,
+  "regions": ["iad1"]
+}
