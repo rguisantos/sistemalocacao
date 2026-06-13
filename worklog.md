@@ -30,3 +30,21 @@ Stage Summary:
 - Database: Neon PostgreSQL with all migrations applied
 - Redis: Upstash connected
 - Fixed missing rotated_at/revoked_at columns in database
+
+---
+Task ID: 5
+Agent: main
+Task: Fix Kotlin 1.9.25 for EAS build + dark mode userInterfaceStyle
+
+Work Log:
+- Applied patch to fix Kotlin version mismatch (Compose Compiler 1.5.15 requires 1.9.25, build was using 1.9.24)
+- Added expo-build-properties (~0.13.1) plugin with android.kotlinVersion 1.9.25
+- Fixed userInterfaceStyle from "light" to "automatic" so dark mode works with useColorScheme()
+- Ran npm install to pull expo-build-properties
+- Committed and pushed to GitHub
+- Started new EAS build: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/4519749c-769b-4961-8495-66f00c2918f7
+
+Stage Summary:
+- Kotlin version pinned to 1.9.25 via expo-build-properties
+- Dark mode now follows system preference (userInterfaceStyle: "automatic")
+- EAS rebuild in progress

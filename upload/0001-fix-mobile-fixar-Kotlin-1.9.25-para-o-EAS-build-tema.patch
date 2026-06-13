@@ -1,0 +1,68 @@
+From 33849806d2a03ec2b7378ee5ceeb7e9c6484676c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 04:10:48 +0000
+Subject: [PATCH] =?UTF-8?q?fix(mobile):=20fixar=20Kotlin=201.9.25=20para?=
+ =?UTF-8?q?=20o=20EAS=20build=20(+=20tema=20autom=C3=A1tico)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+EAS build falhava no compileReleaseKotlin do expo-modules-core:
+o Compose Compiler 1.5.15 exige Kotlin 1.9.25, mas o build pegava
+1.9.24. O bundle JS compilava sem erro — o problema era só a
+toolchain nativa Android.
+
+- expo-build-properties (~0.13.1) com android.kotlinVersion 1.9.25
+- userInterfaceStyle 'light' → 'automatic': o modo escuro que
+  construímos usa useColorScheme; com 'light' o sistema nunca
+  reportaria 'dark' e o modo Automático ficaria preso no claro
+---
+ apps/mobile/app.json     | 10 +++++++++-
+ apps/mobile/package.json |  3 ++-
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/apps/mobile/app.json b/apps/mobile/app.json
+index 49b3d1d..1f47dbd 100644
+--- a/apps/mobile/app.json
++++ b/apps/mobile/app.json
+@@ -5,7 +5,7 @@
+     "version": "1.0.0",
+     "orientation": "portrait",
+     "scheme": "locacoes",
+-    "userInterfaceStyle": "light",
++    "userInterfaceStyle": "automatic",
+     "newArchEnabled": true,
+     "splash": {
+       "backgroundColor": "#1b5e3f"
+@@ -30,6 +30,14 @@
+         {
+           "locationWhenInUsePermission": "Usamos sua localização para preencher o endereço do cliente."
+         }
++      ],
++      [
++        "expo-build-properties",
++        {
++          "android": {
++            "kotlinVersion": "1.9.25"
++          }
++        }
+       ]
+     ]
+   }
+diff --git a/apps/mobile/package.json b/apps/mobile/package.json
+index 22beee5..a24bf2f 100644
+--- a/apps/mobile/package.json
++++ b/apps/mobile/package.json
+@@ -31,7 +31,8 @@
+     "react-native-qrcode-svg": "^6.3.2",
+     "react-native-svg": "15.8.0",
+     "@react-native-community/netinfo": "11.4.1",
+-    "expo-location": "~18.0.0"
++    "expo-location": "~18.0.0",
++    "expo-build-properties": "~0.13.1"
+   },
+   "devDependencies": {
+     "@babel/core": "^7.25.0",
+-- 
+2.43.0
+
