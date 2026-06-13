@@ -6,6 +6,7 @@ import { useApp } from '../../src/store/app';
 import { sincronizar, contarPendentes, contarErros } from '../../src/services/sync';
 import { mapaVencidasPorCliente } from '../../src/services/vencidasLocal';
 import { PERMISSOES } from '@locacoes/shared';
+import { criarEstilos } from '../../src/theme';
 
 interface ClienteRow {
   id: string;
@@ -16,6 +17,7 @@ interface ClienteRow {
 }
 
 export default function ClientesScreen() {
+  const s = useEstilos();
   const { rotaId, rotaNome } = useLocalSearchParams<{ rotaId?: string; rotaNome?: string }>();
   const { usuario, pendentes, setPendentes, temPermissao } = useApp();
   const [busca, setBusca] = useState('');
@@ -124,28 +126,28 @@ export default function ClientesScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
   topo: { flexDirection: 'row', padding: 12, gap: 8 },
-  busca: { flex: 1, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
-  btnSync: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
-  btnNovo: { backgroundColor: '#0e3a24', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
-  btnSyncTexto: { color: '#fff', fontWeight: '700' },
-  status: { textAlign: 'center', color: '#666', marginBottom: 4, fontSize: 12 },
-  card: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 8, borderRadius: 10, padding: 14 },
+  busca: { flex: 1, backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  btnSync: { backgroundColor: c.primaria, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
+  btnNovo: { backgroundColor: c.primariaEscura, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
+  btnSyncTexto: { color: c.brancoFixo, fontWeight: '700' },
+  status: { textAlign: 'center', color: c.textoSuave, marginBottom: 4, fontSize: 12 },
+  card: { backgroundColor: c.cartao, marginHorizontal: 12, marginBottom: 8, borderRadius: 10, padding: 14 },
   nomeLinha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nome: { fontWeight: '700', fontSize: 16, color: '#222' },
-  cardVencida: { borderLeftWidth: 4, borderLeftColor: '#e0a000' },
-  badgeVencida: { backgroundColor: '#fff3cd', color: '#8a6d00', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+  nome: { fontWeight: '700', fontSize: 16, color: c.texto },
+  cardVencida: { borderLeftWidth: 4, borderLeftColor: c.avisoForte },
+  badgeVencida: { backgroundColor: c.avisoSuave, color: c.aviso, fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   filtroVencidas: { paddingHorizontal: 14, paddingBottom: 6 },
-  filtroTexto: { color: '#888', fontSize: 13 },
-  filtroTextoAtivo: { color: '#8a6d00', fontWeight: '700' },
-  faixaErro: { backgroundColor: '#fdecea', marginHorizontal: 12, marginBottom: 8, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#f5c6c0' },
-  faixaErroTexto: { color: '#8a1c12', fontWeight: '600', fontSize: 13, textAlign: 'center' },
-  tituloRota: { paddingHorizontal: 14, color: '#1b5e3f', fontWeight: '800', fontSize: 16, marginBottom: 4 },
-  detalhe: { color: '#666', marginTop: 2, fontSize: 13 },
-  vazio: { textAlign: 'center', color: '#888', marginTop: 40, paddingHorizontal: 24 },
-  rodape: { color: '#999', fontSize: 11 },
+  filtroTexto: { color: c.textoFraco, fontSize: 13 },
+  filtroTextoAtivo: { color: c.aviso, fontWeight: '700' },
+  faixaErro: { backgroundColor: c.erroSuave, marginHorizontal: 12, marginBottom: 8, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: c.erroBorda },
+  faixaErroTexto: { color: c.erro, fontWeight: '600', fontSize: 13, textAlign: 'center' },
+  tituloRota: { paddingHorizontal: 14, color: c.primaria, fontWeight: '800', fontSize: 16, marginBottom: 4 },
+  detalhe: { color: c.textoSuave, marginTop: 2, fontSize: 13 },
+  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40, paddingHorizontal: 24 },
+  rodape: { color: c.textoFraco, fontSize: 11 },
   rodapeLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 6 },
-  rodapeLink: { color: '#1b5e3f', fontSize: 11, fontWeight: '700' },
-});
+  rodapeLink: { color: c.primaria, fontSize: 11, fontWeight: '700' },
+}));

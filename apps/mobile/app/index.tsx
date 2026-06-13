@@ -4,8 +4,11 @@ import { router } from 'expo-router';
 import { login } from '../src/services/auth';
 import { useApp } from '../src/store/app';
 import { sincronizar } from '../src/services/sync';
+import { criarEstilos, useCores } from '../src/theme';
 
 export default function LoginScreen() {
+  const s = useEstilos();
+  const cores = useCores();
   const setUsuario = useApp((s) => s.setUsuario);
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
@@ -33,11 +36,11 @@ export default function LoginScreen() {
       <Text style={s.subtitulo}>Cobranças em campo, online ou offline</Text>
 
       <TextInput
-        style={s.input} placeholder="CPF (somente números)" placeholderTextColor="#9aa"
+        style={s.input} placeholder="CPF (somente números)" placeholderTextColor={cores.textoFraco}
         keyboardType="number-pad" maxLength={11} value={cpf} onChangeText={setCpf}
       />
       <TextInput
-        style={s.input} placeholder="Senha" placeholderTextColor="#9aa"
+        style={s.input} placeholder="Senha" placeholderTextColor={cores.textoFraco}
         secureTextEntry value={senha} onChangeText={setSenha}
       />
       {erro ? <Text style={s.erro}>{erro}</Text> : null}
@@ -49,18 +52,18 @@ export default function LoginScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1b5e3f', justifyContent: 'center', padding: 24 },
-  titulo: { fontSize: 32, fontWeight: '800', color: '#fff', textAlign: 'center' },
-  subtitulo: { color: '#cde5d8', textAlign: 'center', marginBottom: 32 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.primaria, justifyContent: 'center', padding: 24 },
+  titulo: { fontSize: 32, fontWeight: '800', color: c.brancoFixo, textAlign: 'center' },
+  subtitulo: { color: '#cde5d8', textAlign: 'center', marginBottom: 32 }, // sobre primária: fixo nos 2 temas
   input: {
-    backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+    backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
     marginBottom: 12, fontSize: 16,
   },
-  erro: { color: '#ffd2d2', marginBottom: 8, textAlign: 'center' },
+  erro: { color: '#ffd2d2', marginBottom: 8, textAlign: 'center' }, // sobre primária: fixo nos 2 temas
   botao: {
-    backgroundColor: '#0e3a24', borderRadius: 10, paddingVertical: 14,
+    backgroundColor: c.primariaEscura, borderRadius: 10, paddingVertical: 14,
     alignItems: 'center', marginTop: 8,
   },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-});
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+}));

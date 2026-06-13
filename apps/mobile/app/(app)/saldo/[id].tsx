@@ -8,6 +8,7 @@ import { db } from '../../../src/db/schema';
 import { api } from '../../../src/services/api';
 import { sincronizar, estaOnline } from '../../../src/services/sync';
 import { formatarBRL } from '@locacoes/shared';
+import { criarEstilos } from '../../../src/theme';
 
 interface SaldoRow {
   id: string; valor_original: string; valor_restante: string; status: string;
@@ -24,6 +25,7 @@ const NOME_FORMA: Record<string, string> = {
 const FORMAS = [['DINHEIRO', 'Dinheiro'], ['PIX_MANUAL', 'PIX manual'], ['CARTAO', 'Cartão']] as const;
 
 export default function SaldoScreen() {
+  const s = useEstilos();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [saldo, setSaldo] = useState<SaldoRow | null>(null);
   const [pagamentos, setPagamentos] = useState<PagamentoRow[]>([]);
@@ -127,28 +129,28 @@ export default function SaldoScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  cliente: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
-  detalhe: { color: '#666', marginBottom: 16 },
-  cartao: { backgroundColor: '#fff', borderRadius: 12, padding: 18, alignItems: 'center', marginBottom: 16 },
-  rotulo: { color: '#888', fontSize: 12, textTransform: 'uppercase' },
-  restante: { fontSize: 30, fontWeight: '800', color: '#b3261e', marginVertical: 4 },
-  original: { color: '#999', fontSize: 12 },
-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  cliente: { fontSize: 20, fontWeight: '800', color: c.primaria },
+  detalhe: { color: c.textoSuave, marginBottom: 16 },
+  cartao: { backgroundColor: c.cartao, borderRadius: 12, padding: 18, alignItems: 'center', marginBottom: 16 },
+  rotulo: { color: c.textoFraco, fontSize: 12, textTransform: 'uppercase' },
+  restante: { fontSize: 30, fontWeight: '800', color: c.erro, marginVertical: 4 },
+  original: { color: c.textoFraco, fontSize: 12 },
+  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
+  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
   formas: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  chipAtivo: { backgroundColor: '#1b5e3f' },
-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
-  chipTextoAtivo: { color: '#fff' },
-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  chipAtivo: { backgroundColor: c.primaria },
+  chipTexto: { color: c.primaria, fontSize: 13 },
+  chipTextoAtivo: { color: c.brancoFixo },
+  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   botaoOff: { opacity: 0.4 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  vazio: { textAlign: 'center', marginTop: 40, color: '#888' },
-  pagamento: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  pagamentoData: { fontWeight: '600', color: '#333' },
-  pagamentoForma: { color: '#888', fontSize: 12 },
-  pagamentoValor: { fontWeight: '800', color: '#1b5e3f', fontSize: 16 },
-  dicaSync: { color: '#999', fontSize: 11, marginTop: 8, textAlign: 'center' },
-});
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+  vazio: { textAlign: 'center', marginTop: 40, color: c.textoFraco },
+  pagamento: { backgroundColor: c.cartao, borderRadius: 10, padding: 12, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pagamentoData: { fontWeight: '600', color: c.texto },
+  pagamentoForma: { color: c.textoFraco, fontSize: 12 },
+  pagamentoValor: { fontWeight: '800', color: c.primaria, fontSize: 16 },
+  dicaSync: { color: c.textoFraco, fontSize: 11, marginTop: 8, textAlign: 'center' },
+}));

@@ -16,6 +16,7 @@ import { sincronizar, estaOnline } from '../../../src/services/sync';
 import { imprimirRecibo } from '../../../src/services/impressora';
 import { api } from '../../../src/services/api';
 import { formatarBRL, PERMISSOES } from '@locacoes/shared';
+import { criarEstilos, useCores } from '../../../src/theme';
 
 const FORMAS = ['DINHEIRO', 'PIX_MANUAL', 'CARTAO', 'PIX_MERCADO_PAGO'] as const;
 const NOME_FORMA: Record<string, string> = {
@@ -26,6 +27,8 @@ const NOME_FORMA: Record<string, string> = {
 };
 
 export default function CobrancaScreen() {
+  const s = useEstilos();
+  const cores = useCores();
   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
   const { usuario, temPermissao } = useApp();
 
@@ -248,7 +251,7 @@ export default function CobrancaScreen() {
       {temPermissao(PERMISSOES.MARCAR_TROCA_PANO) && (
         <View style={s.switchLinha}>
           <Text style={s.label}>Troca de pano</Text>
-          <Switch value={trocaPano} onValueChange={setTrocaPano} trackColor={{ true: '#1b5e3f' }} />
+          <Switch value={trocaPano} onValueChange={setTrocaPano} trackColor={{ true: cores.primaria }} />
         </View>
       )}
 
@@ -274,33 +277,33 @@ export default function CobrancaScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  cliente: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
-  produto: { color: '#666', marginBottom: 16 },
-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
-  erro: { color: '#b3261e', marginTop: 8, fontWeight: '600' },
-  resumo: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginTop: 16 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  cliente: { fontSize: 20, fontWeight: '800', color: c.primaria },
+  produto: { color: c.textoSuave, marginBottom: 16 },
+  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
+  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
+  erro: { color: c.erro, marginTop: 8, fontWeight: '600' },
+  resumo: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginTop: 16 },
   passoLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
-  passoDesc: { color: '#555', flex: 1, fontSize: 13 },
+  passoDesc: { color: c.textoSuave, flex: 1, fontSize: 13 },
   passoValor: { fontWeight: '600', fontSize: 13 },
   formas: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
-  chipAtivo: { backgroundColor: '#1b5e3f' },
-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
-  chipTextoAtivo: { color: '#fff' },
+  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+  chipAtivo: { backgroundColor: c.primaria },
+  chipTexto: { color: c.primaria, fontSize: 13 },
+  chipTextoAtivo: { color: c.brancoFixo },
   switchLinha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   botaoOff: { opacity: 0.4 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  vazio: { textAlign: 'center', marginTop: 40, color: '#888' },
-  avisoLock: { backgroundColor: '#fdecea', borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#f5c6c0' },
-  avisoLockTexto: { color: '#8a1c12', fontSize: 13, fontWeight: '600' },
-  linkFinalizar: { color: '#888', textAlign: 'center', marginTop: 18, textDecorationLine: 'underline', fontSize: 13 },
-  pixContainer: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  pixTitulo: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+  vazio: { textAlign: 'center', marginTop: 40, color: c.textoFraco },
+  avisoLock: { backgroundColor: c.erroSuave, borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: c.erroBorda },
+  avisoLockTexto: { color: c.erro, fontSize: 13, fontWeight: '600' },
+  linkFinalizar: { color: c.textoFraco, textAlign: 'center', marginTop: 18, textDecorationLine: 'underline', fontSize: 13 },
+  pixContainer: { flex: 1, backgroundColor: c.cartao, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  pixTitulo: { fontSize: 20, fontWeight: '800', color: c.primaria },
   pixValor: { fontSize: 28, fontWeight: '800', marginVertical: 12 },
-  qr: { padding: 16, backgroundColor: '#fff', borderRadius: 12, elevation: 3 },
-  pixDica: { color: '#666', textAlign: 'center', marginTop: 16, fontSize: 13 },
-});
+  qr: { padding: 16, backgroundColor: c.cartao, borderRadius: 12, elevation: 3 },
+  pixDica: { color: c.textoSuave, textAlign: 'center', marginTop: 16, fontSize: 13 },
+}));

@@ -11,6 +11,7 @@ import { useFocusEffect } from 'expo-router';
 import { db } from '../../src/db/schema';
 import { sincronizar, estaOnline } from '../../src/services/sync';
 import { api } from '../../src/services/api';
+import { criarEstilos } from '../../src/theme';
 
 interface ErroRow {
   registro_id: string;
@@ -65,6 +66,7 @@ const NOME_ENTIDADE: Record<string, string> = {
 };
 
 export default function SyncErrosScreen() {
+  const s = useEstilos();
   const [erros, setErros] = useState<ErroRow[]>([]);
   const [conflitos, setConflitos] = useState<ConflitoMeu[]>([]);
 
@@ -194,26 +196,26 @@ export default function SyncErrosScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: '#b3261e' },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: c.erro },
   linha: { flexDirection: 'row', justifyContent: 'space-between' },
-  tipo: { fontWeight: '700', color: '#b3261e', fontSize: 13 },
-  data: { color: '#999', fontSize: 11 },
+  tipo: { fontWeight: '700', color: c.erro, fontSize: 13 },
+  data: { color: c.textoFraco, fontSize: 11 },
   descricao: { fontWeight: '600', fontSize: 15, marginTop: 4 },
-  mensagem: { color: '#666', fontSize: 13, marginTop: 4 },
+  mensagem: { color: c.textoSuave, fontSize: 13, marginTop: 4 },
   acoes: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  btnRetry: { backgroundColor: '#1b5e3f', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  btnRetryTexto: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  btnDescartar: { borderWidth: 1, borderColor: '#b3261e', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
-  btnDescartarTexto: { color: '#b3261e', fontWeight: '600', fontSize: 13 },
+  btnRetry: { backgroundColor: c.primaria, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+  btnRetryTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 13 },
+  btnDescartar: { borderWidth: 1, borderColor: c.erro, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+  btnDescartarTexto: { color: c.erro, fontWeight: '600', fontSize: 13 },
   vazioBox: { alignItems: 'center', marginTop: 60 },
-  vazioTitulo: { fontWeight: '800', color: '#1b5e3f', fontSize: 16 },
-  vazio: { color: '#888', marginTop: 4 },
-  tituloConflitos: { fontWeight: '800', color: '#8a6d00', fontSize: 15 },
-  subtituloConflitos: { color: '#8a6d00', fontSize: 12, marginTop: 2, marginBottom: 8 },
-  cardConflito: { backgroundColor: '#fff8e6', borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: '#d4a017' },
-  conflitoTipo: { fontWeight: '700', color: '#8a6d00', fontSize: 13 },
-  conflitoData: { color: '#999', fontSize: 11 },
-  conflitoCampos: { color: '#666', fontSize: 13, marginTop: 4 },
-});
+  vazioTitulo: { fontWeight: '800', color: c.primaria, fontSize: 16 },
+  vazio: { color: c.textoFraco, marginTop: 4 },
+  tituloConflitos: { fontWeight: '800', color: c.aviso, fontSize: 15 },
+  subtituloConflitos: { color: c.aviso, fontSize: 12, marginTop: 2, marginBottom: 8 },
+  cardConflito: { backgroundColor: c.avisoSuave, borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: c.avisoForte },
+  conflitoTipo: { fontWeight: '700', color: c.aviso, fontSize: 13 },
+  conflitoData: { color: c.textoFraco, fontSize: 11 },
+  conflitoCampos: { color: c.textoSuave, fontSize: 13, marginTop: 4 },
+}));

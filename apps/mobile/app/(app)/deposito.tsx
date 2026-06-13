@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { db } from '../../src/db/schema';
+import { criarEstilos } from '../../src/theme';
 
 interface ProdutoDepositoRow {
   id: string;
@@ -16,6 +17,7 @@ interface ProdutoDepositoRow {
 }
 
 export default function DepositoScreen() {
+  const s = useEstilos();
   const [produtos, setProdutos] = useState<ProdutoDepositoRow[]>([]);
 
   useFocusEffect(
@@ -68,12 +70,12 @@ export default function DepositoScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   plaqueta: { fontWeight: '700', fontSize: 16 },
-  deposito: { color: '#1b5e3f', fontWeight: '600', fontSize: 13 },
-  detalhe: { color: '#666', fontSize: 13, marginTop: 4 },
-  vazio: { textAlign: 'center', color: '#888', marginTop: 40, paddingHorizontal: 24 },
-});
+  deposito: { color: c.primaria, fontWeight: '600', fontSize: 13 },
+  detalhe: { color: c.textoSuave, fontSize: 13, marginTop: 4 },
+  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40, paddingHorizontal: 24 },
+}));

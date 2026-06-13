@@ -8,6 +8,7 @@ import { db } from '../../src/db/schema';
 import { useApp } from '../../src/store/app';
 import { sincronizar, contarPendentes } from '../../src/services/sync';
 import { listarVencidasLocal } from '../../src/services/vencidasLocal';
+import { criarEstilos } from '../../src/theme';
 
 interface RotaCard {
   id: string;
@@ -17,6 +18,7 @@ interface RotaCard {
 }
 
 export default function RotasScreen() {
+  const s = useEstilos();
   const { usuario, pendentes, setPendentes } = useApp();
   const [rotas, setRotas] = useState<RotaCard[]>([]);
   const [statusSync, setStatusSync] = useState('');
@@ -97,18 +99,18 @@ export default function RotasScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
   topo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, paddingBottom: 4 },
-  saudacao: { fontSize: 16, color: '#555' },
-  btnSync: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
-  btnSyncTexto: { color: '#fff', fontWeight: '700' },
-  status: { textAlign: 'center', color: '#666', fontSize: 12 },
-  titulo: { fontSize: 22, fontWeight: '800', color: '#1b5e3f', paddingHorizontal: 14, marginTop: 6 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10 },
+  saudacao: { fontSize: 16, color: c.textoSuave },
+  btnSync: { backgroundColor: c.primaria, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  btnSyncTexto: { color: c.brancoFixo, fontWeight: '700' },
+  status: { textAlign: 'center', color: c.textoSuave, fontSize: 12 },
+  titulo: { fontSize: 22, fontWeight: '800', color: c.primaria, paddingHorizontal: 14, marginTop: 6 },
+  card: { backgroundColor: c.cartao, borderRadius: 12, padding: 16, marginBottom: 10 },
   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  nome: { fontWeight: '800', fontSize: 18, color: '#222' },
-  badgeVencida: { backgroundColor: '#fff3cd', color: '#8a6d00', fontSize: 12, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  detalhe: { color: '#888', marginTop: 4 },
-  vazio: { textAlign: 'center', color: '#888', marginTop: 40, paddingHorizontal: 24 },
-});
+  nome: { fontWeight: '800', fontSize: 18, color: c.texto },
+  badgeVencida: { backgroundColor: c.avisoSuave, color: c.aviso, fontSize: 12, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  detalhe: { color: c.textoFraco, marginTop: 4 },
+  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40, paddingHorizontal: 24 },
+}));

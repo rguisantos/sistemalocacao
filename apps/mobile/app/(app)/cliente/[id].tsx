@@ -3,6 +3,7 @@ import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '../../../src/db/schema';
 import { formatarBRL } from '@locacoes/shared';
+import { criarEstilos } from '../../../src/theme';
 
 interface SaldoRow {
   id: string; valor_restante: string; plaqueta: string;
@@ -24,6 +25,7 @@ const NOME_REGRA: Record<string, string> = {
 };
 
 export default function ClienteScreen() {
+  const s = useEstilos();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [nome, setNome] = useState('');
   const [locacoes, setLocacoes] = useState<LocacaoRow[]>([]);
@@ -119,24 +121,24 @@ export default function ClienteScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea', padding: 12 },
-  titulo: { fontSize: 20, fontWeight: '800', marginBottom: 12, color: '#1b5e3f' },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo, padding: 12 },
+  titulo: { fontSize: 20, fontWeight: '800', marginBottom: 12, color: c.primaria },
+  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
   cardInativa: { opacity: 0.5 },
   linha: { flexDirection: 'row', justifyContent: 'space-between' },
   plaqueta: { fontWeight: '700', fontSize: 16 },
-  regra: { color: '#1b5e3f', fontWeight: '600' },
-  endereco: { color: '#666', fontSize: 13, marginTop: 2 },
-  deve: { color: '#b3261e', marginTop: 4, fontWeight: '600' },
-  haver: { color: '#1b5e3f', marginTop: 4, fontWeight: '600' },
-  acao: { color: '#999', fontSize: 12 },
-  historico: { color: '#1b5e3f', fontSize: 12, fontWeight: '600' },
-  editar: { color: '#1b5e3f', fontWeight: '600', marginBottom: 12 },
-  botaoNova: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  botaoNovaTexto: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  vazio: { textAlign: 'center', color: '#888', marginTop: 40 },
-  saldoCard: { backgroundColor: '#fdecea', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#f5c6c0' },
-  saldoTexto: { color: '#8a1c12', fontWeight: '600', fontSize: 13 },
-  saldoAcao: { color: '#b3261e', fontSize: 11, marginTop: 4 },
-});
+  regra: { color: c.primaria, fontWeight: '600' },
+  endereco: { color: c.textoSuave, fontSize: 13, marginTop: 2 },
+  deve: { color: c.erro, marginTop: 4, fontWeight: '600' },
+  haver: { color: c.primaria, marginTop: 4, fontWeight: '600' },
+  acao: { color: c.textoFraco, fontSize: 12 },
+  historico: { color: c.primaria, fontSize: 12, fontWeight: '600' },
+  editar: { color: c.primaria, fontWeight: '600', marginBottom: 12 },
+  botaoNova: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
+  botaoNovaTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 15 },
+  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40 },
+  saldoCard: { backgroundColor: c.erroSuave, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: c.erroBorda },
+  saldoTexto: { color: c.erro, fontWeight: '600', fontSize: 13 },
+  saldoAcao: { color: c.erro, fontSize: 11, marginTop: 4 },
+}));

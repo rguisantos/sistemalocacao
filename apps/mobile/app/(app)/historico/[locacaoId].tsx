@@ -11,6 +11,7 @@ import { estaOnline } from '../../../src/services/sync';
 import { imprimirRecibo } from '../../../src/services/impressora';
 import { useApp } from '../../../src/store/app';
 import { formatarBRL } from '@locacoes/shared';
+import { criarEstilos } from '../../../src/theme';
 
 interface ItemHistorico {
   id: string;
@@ -32,6 +33,7 @@ const NOME_FORMA: Record<string, string> = {
 };
 
 export default function HistoricoScreen() {
+  const s = useEstilos();
   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
   const { usuario } = useApp();
   const [itens, setItens] = useState<ItemHistorico[]>([]);
@@ -172,14 +174,14 @@ export default function HistoricoScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  cabecalho: { padding: 12, paddingBottom: 0, color: '#1b5e3f', fontWeight: '700' },
-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  cabecalho: { padding: 12, paddingBottom: 0, color: c.primaria, fontWeight: '700' },
+  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
   linha: { flexDirection: 'row', justifyContent: 'space-between' },
-  data: { color: '#666', fontSize: 13 },
-  valor: { fontWeight: '800', fontSize: 16, color: '#1b5e3f' },
-  detalhe: { color: '#888', fontSize: 12, marginTop: 4 },
-  reimprimir: { color: '#1b5e3f', fontSize: 13, fontWeight: '600', marginTop: 8 },
-  vazio: { textAlign: 'center', color: '#888', marginTop: 40 },
-});
+  data: { color: c.textoSuave, fontSize: 13 },
+  valor: { fontWeight: '800', fontSize: 16, color: c.primaria },
+  detalhe: { color: c.textoFraco, fontSize: 12, marginTop: 4 },
+  reimprimir: { color: c.primaria, fontSize: 13, fontWeight: '600', marginTop: 8 },
+  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40 },
+}));

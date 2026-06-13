@@ -9,10 +9,12 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Location from 'expo-location';
 import { db } from '../../src/db/schema';
 import { uuid, sincronizar } from '../../src/services/sync';
+import { criarEstilos } from '../../src/theme';
 
 interface RotaRow { id: string; nome: string }
 
 export default function ClienteNovoScreen() {
+  const s = useEstilos();
   const [rotas, setRotas] = useState<RotaRow[]>([]);
   const [nome, setNome] = useState('');
   const [cpfCnpj, setCpfCnpj] = useState('');
@@ -167,22 +169,22 @@ export default function ClienteNovoScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  secao: { fontWeight: '700', color: '#1b5e3f', marginTop: 16, marginBottom: 8, fontSize: 15 },
-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, marginBottom: 8 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  secao: { fontWeight: '700', color: c.primaria, marginTop: 16, marginBottom: 8, fontSize: 15 },
+  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, marginBottom: 8 },
   linha: { flexDirection: 'row', gap: 8 },
   meio: { flex: 1 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  chipAtivo: { backgroundColor: '#1b5e3f' },
-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
-  chipTextoAtivo: { color: '#fff' },
-  dica: { color: '#888', fontSize: 13 },
-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  chipAtivo: { backgroundColor: c.primaria },
+  chipTexto: { color: c.primaria, fontSize: 13 },
+  chipTextoAtivo: { color: c.brancoFixo },
+  dica: { color: c.textoFraco, fontSize: 13 },
+  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
   botaoOff: { opacity: 0.4 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  rodape: { color: '#999', fontSize: 12, textAlign: 'center', marginTop: 10 },
-  btnGps: { backgroundColor: '#e8f3ee', borderRadius: 10, padding: 11, marginBottom: 8, borderWidth: 1, borderColor: '#1b5e3f44' },
-  btnGpsTexto: { color: '#1b5e3f', fontWeight: '600', textAlign: 'center', fontSize: 13 },
-});
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+  rodape: { color: c.textoFraco, fontSize: 12, textAlign: 'center', marginTop: 10 },
+  btnGps: { backgroundColor: c.primariaSuave, borderRadius: 10, padding: 11, marginBottom: 8, borderWidth: 1, borderColor: c.primariaTransl },
+  btnGpsTexto: { color: c.primaria, fontWeight: '600', textAlign: 'center', fontSize: 13 },
+}));

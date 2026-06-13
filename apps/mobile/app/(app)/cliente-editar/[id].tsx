@@ -7,8 +7,10 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert } from 
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '../../../src/db/schema';
 import { sincronizar } from '../../../src/services/sync';
+import { criarEstilos } from '../../../src/theme';
 
 export default function ClienteEditarScreen() {
+  const s = useEstilos();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [nome, setNome] = useState('');
   const [telefone, setTelefone] = useState('');
@@ -79,13 +81,13 @@ export default function ClienteEditarScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
+  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
   area: { minHeight: 80, textAlignVertical: 'top' },
-  dica: { color: '#999', fontSize: 12, marginTop: 8 },
-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+  dica: { color: c.textoFraco, fontSize: 12, marginTop: 8 },
+  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   botaoOff: { opacity: 0.4 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-});
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+}));

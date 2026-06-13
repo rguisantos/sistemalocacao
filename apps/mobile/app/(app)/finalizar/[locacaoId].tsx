@@ -7,6 +7,7 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '../../../src/db/schema';
 import { sincronizar } from '../../../src/services/sync';
 import { formatarBRL } from '@locacoes/shared';
+import { criarEstilos } from '../../../src/theme';
 
 interface DepositoRow { id: string; nome: string }
 interface LocacaoRow {
@@ -15,6 +16,7 @@ interface LocacaoRow {
 }
 
 export default function FinalizarScreen() {
+  const s = useEstilos();
   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
   const [locacao, setLocacao] = useState<LocacaoRow | null>(null);
   const [depositos, setDepositos] = useState<DepositoRow[]>([]);
@@ -142,21 +144,21 @@ export default function FinalizarScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  titulo: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
-  subtitulo: { color: '#666', marginBottom: 12 },
-  aviso: { backgroundColor: '#fff3cd', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#ffe69c' },
-  avisoTexto: { color: '#8a6d00', fontSize: 13 },
-  secao: { fontWeight: '700', color: '#444', marginTop: 16, marginBottom: 8 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  titulo: { fontSize: 20, fontWeight: '800', color: c.primaria },
+  subtitulo: { color: c.textoSuave, marginBottom: 12 },
+  aviso: { backgroundColor: c.avisoSuave, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: c.avisoBorda },
+  avisoTexto: { color: c.aviso, fontSize: 13 },
+  secao: { fontWeight: '700', color: c.textoSuave, marginTop: 16, marginBottom: 8 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  chipAtivo: { backgroundColor: '#1b5e3f' },
-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
-  chipTextoAtivo: { color: '#fff' },
-  dica: { color: '#888', fontSize: 13, marginTop: 4 },
-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  chipAtivo: { backgroundColor: c.primaria },
+  chipTexto: { color: c.primaria, fontSize: 13 },
+  chipTextoAtivo: { color: c.brancoFixo },
+  dica: { color: c.textoFraco, fontSize: 13, marginTop: 4 },
+  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   botaoOff: { opacity: 0.4 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  vazio: { textAlign: 'center', marginTop: 40, color: '#888' },
-});
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+  vazio: { textAlign: 'center', marginTop: 40, color: c.textoFraco },
+}));

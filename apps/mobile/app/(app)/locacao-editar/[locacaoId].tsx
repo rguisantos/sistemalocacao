@@ -6,6 +6,7 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert } from 
 import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '../../../src/db/schema';
 import { sincronizar } from '../../../src/services/sync';
+import { criarEstilos } from '../../../src/theme';
 
 const REGRAS = [
   ['VALOR_FIXO', 'Valor fixo'],
@@ -15,6 +16,7 @@ const REGRAS = [
 const FREQUENCIAS = [['SEMANAL', 'Semanal'], ['QUINZENAL', 'Quinzenal'], ['MENSAL', 'Mensal']] as const;
 
 export default function LocacaoEditarScreen() {
+  const s = useEstilos();
   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
   const [contexto, setContexto] = useState('');
   const [regra, setRegra] = useState<(typeof REGRAS)[number][0]>('VALOR_FIXO');
@@ -122,19 +124,19 @@ export default function LocacaoEditarScreen() {
   );
 }
 
-const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f2ea' },
-  contexto: { fontSize: 18, fontWeight: '800', color: '#1b5e3f' },
-  aviso: { color: '#8a6d00', fontSize: 12, marginTop: 6, backgroundColor: '#fff3cd', padding: 10, borderRadius: 8 },
-  secao: { fontWeight: '700', color: '#444', marginTop: 16, marginBottom: 8 },
-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
+const useEstilos = criarEstilos((c) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: c.fundo },
+  contexto: { fontSize: 18, fontWeight: '800', color: c.primaria },
+  aviso: { color: c.aviso, fontSize: 12, marginTop: 6, backgroundColor: c.avisoSuave, padding: 10, borderRadius: 8 },
+  secao: { fontWeight: '700', color: c.textoSuave, marginTop: 16, marginBottom: 8 },
+  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
+  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
-  chipAtivo: { backgroundColor: '#1b5e3f' },
-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
-  chipTextoAtivo: { color: '#fff' },
-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+  chipAtivo: { backgroundColor: c.primaria },
+  chipTexto: { color: c.primaria, fontSize: 13 },
+  chipTextoAtivo: { color: c.brancoFixo },
+  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
   botaoOff: { opacity: 0.4 },
-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
-});
+  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
+}));
