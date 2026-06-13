@@ -28,6 +28,9 @@ const apiLimiter = criarLimiter(300, 60, 'rl:api');
 
 function aplicar(limiter: RateLimiterAbstract, chave: (req: Request) => string) {
   return async (req: Request, res: Response, next: NextFunction) => {
+    // Testes de integração fazem dezenas de logins legítimos no mesmo IP;
+    // o limite não é o objeto sob teste (nenhum teste espera 429).
+    if (env.NODE_ENV === 'test') return next();
     try {
       await limiter.consume(chave(req));
       next();

@@ -49,7 +49,7 @@ describe('fluxo de cobrança percentual', () => {
       .set(auth(ctx.token))
       .send({
         contadorAtual: 1200,
-        valorRecebidoPago: '150.00', // paga 30 a menos que os 180 devidos
+        valorRecebidoPago: '150.00', // paga 50 a menos que os 200 devidos (sem descontos aqui)
         formaPagamento: 'DINHEIRO',
       });
 
@@ -57,7 +57,7 @@ describe('fluxo de cobrança percentual', () => {
     expect(resp.body.cobranca.statusPagamento).toBe('PARCIAL');
 
     const locacao = await prisma.locacao.findUnique({ where: { id: locacaoId } });
-    expect(locacao!.saldoAtual.toFixed(2)).toBe('30.00'); // 180 - 150
+    expect(locacao!.saldoAtual.toFixed(2)).toBe('50.00'); // 200 - 150
 
     const produto = await prisma.produto.findUnique({ where: { id: ctx.produtoId } });
     expect(produto!.contador).toBe(1200);
@@ -72,8 +72,8 @@ describe('fluxo de cobrança percentual', () => {
       .post(`/api/locacoes/${locacaoId}/calcular`)
       .set(auth(ctx.token))
       .send({ contadorAtual: 1300 });
-    // 100 partidas * 2 = 200 → 50% = 100 → + saldo 30 = 130
-    expect(previa.body.valorLiquidoFinal).toBe('130.00');
+    // 100 partidas * 2 = 200 → 50% = 100 → + saldo 50 = 150
+    expect(previa.body.valorLiquidoFinal).toBe('150.00');
   });
 
   it('rejeita contador regredindo com 400', async () => {
