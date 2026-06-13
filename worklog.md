@@ -68,3 +68,47 @@ Stage Summary:
 - Fix: synchronous DB init at module level + defensive getMeta
 - EAS build: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/ee05595e-6426-4fd3-9dcf-58e15fd5deb1
 - Only JS changed — native prebuild cached, build should be faster
+
+---
+Task ID: 7
+Agent: main
+Task: Fix white screen — add expo-router peer deps + configure EAS Update
+
+Work Log:
+- Identified missing peer deps for expo-router v4: react-native-reanimated and react-native-gesture-handler
+- Added react-native-reanimated ~3.16.1 and react-native-gesture-handler ~2.20.2 (SDK 52 versions)
+- Added react-native-reanimated/plugin to babel.config.js (must be last plugin)
+- Wrapped app tree with GestureHandlerRootView in _layout.tsx (required for release)
+- Added expo-updates ~0.27.4 for OTA updates
+- Configured runtimeVersion policy 'appVersion' and updates.fallbackToCacheTimeout: 0 in app.json
+- Created eas.json with development/preview/production channels
+- Set EXPO_PUBLIC_API_URL to https://api-production-71e3.up.railway.app in eas.json profiles
+- Ran eas update:configure — configured updates.url
+- This is the LAST native build needed — future JS-only changes go via `eas update`
+
+Stage Summary:
+- Peer deps added: reanimated + gesture-handler (likely root cause of persistent white screen)
+- EAS Update configured with preview/production channels
+- Build: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/16d98ac3-5d63-49d1-9b91-458b12966503
+- After this build, JS iterations via: eas update --branch preview --message "ajuste X"
+
+---
+Task ID: 8
+Agent: main
+Task: Fix crash imediato no boot — remover plugin Reanimated duplicado no Babel
+
+Work Log:
+- Received user report: symptom changed from white screen (boot stuck) to immediate crash after opening — this means router now starts (peer deps fixed), but something crashes right after
+- Root cause: babel-preset-expo in SDK 52 already includes react-native-reanimated/plugin automatically; manually declaring it again in babel.config.js created a duplicate plugin that broke worklet initialization
+- Applied fix: removed the plugins array from babel.config.js, keeping only { presets: ['babel-preset-expo'] }
+- Resolved git rebase conflict (remote had diverged) and pushed commit 6e6fd74
+- Ran npm install to ensure all deps are in node_modules (expo-build-properties was missing)
+- Published EAS OTA update (no native rebuild needed — JS/Babel only change):
+  - Branch: preview
+  - Update group: 05bb8560-0c31-4ffb-b421-62509d0e0624
+  - Dashboard: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/updates/05bb8560-0c31-4ffb-b421-62509d0e0624
+
+Stage Summary:
+- Babel config simplified: only babel-preset-expo (SDK 52 includes Reanimated plugin automatically)
+- OTA update published — user should close and reopen the app on device to download the fix
+- If crash persists, next step is adb logcat to get the exact exception

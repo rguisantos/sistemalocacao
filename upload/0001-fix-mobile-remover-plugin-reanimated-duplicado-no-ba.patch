@@ -1,0 +1,41 @@
+From 387009cb242ad68a2841553a20f39dd2613099f8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 13:28:31 +0000
+Subject: [PATCH] fix(mobile): remover plugin reanimated duplicado no babel
+ (crash no boot)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+App passou de tela branca para crash imediato após abrir: o
+babel-preset-expo do SDK 52 JÁ inclui o plugin do react-native-
+reanimated automaticamente. Declarar 'react-native-reanimated/plugin'
+de novo no babel.config gerava plugin duplicado, quebrando a
+inicialização das worklets logo no arranque.
+
+As libs (reanimated + gesture-handler) e o GestureHandlerRootView do
+commit anterior estão corretos e continuam — só a linha do plugin no
+babel saiu.
+---
+ apps/mobile/babel.config.js | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/apps/mobile/babel.config.js b/apps/mobile/babel.config.js
+index 06a9b3b..80514d8 100644
+--- a/apps/mobile/babel.config.js
++++ b/apps/mobile/babel.config.js
+@@ -1,8 +1,6 @@
+ module.exports = function (api) {
+   api.cache(true);
+-  return {
+-    presets: ['babel-preset-expo'],
+-    // O plugin do Reanimated DEVE ser o último da lista.
+-    plugins: ['react-native-reanimated/plugin'],
+-  };
++  // babel-preset-expo (SDK 52) já inclui o plugin do react-native-reanimated.
++  // NÃO declarar 'react-native-reanimated/plugin' aqui — duplicar quebra o boot.
++  return { presets: ['babel-preset-expo'] };
+ };
+-- 
+2.43.0
+
