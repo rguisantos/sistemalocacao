@@ -4,6 +4,15 @@ Sistema fullstack para gestão de locação de equipamentos operados por ficha/m
 
 ---
 
+### Arquitetura de dependências React (monorepo)
+
+Princípio: **a raiz não declara React**. Cada app é dono da sua versão como dependência direta — web usa `react@19` (Next 15), mobile usa `react@18.3.1` (React Native 0.76). Sem React na raiz, não há versão içada para o topo e cada app mantém sua cópia aninhada de forma determinística, eliminando a guerra de hoisting.
+
+Reforços por app (defesa em profundidade, independentes do hoisting):
+- **Web** (`next.config.mjs`): alias de webpack fixa `react`/`react-dom` em `apps/web/node_modules` — evita o `Cannot read properties of null (useContext)` no prerender.
+- **Mobile** (`metro.config.js`): `extraNodeModules` fixa `react`/`react-native` em `apps/mobile/node_modules` — evita o `Cannot read property 'ReactCurrentDispatcher' of undefined`.
+
+
 ## 1. Stack
 
 | Camada | Tecnologia | Observação vs. spec original |
