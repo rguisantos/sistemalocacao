@@ -1,0 +1,1176 @@
+From 97946971d9c204166ed6248a1e60aad747b29f3b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 01:36:49 +0000
+Subject: [PATCH] =?UTF-8?q?feat(mobile):=20modo=20escuro/claro=20em=20toda?=
+ =?UTF-8?q?s=20as=20telas=20(spec=20=C2=A79)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Sistema de tema (src/theme.tsx) espelhando os tokens do painel:
+- Paleta clara IDÊNTICA à original (zero mudança visual no claro) e
+  escura derivada do design system feltro do web
+- Modo Automático (segue o sistema) / Claro / Escuro, persistido na
+  tabela meta do SQLite; seletor na tela de Ajustes (ex-Impressora)
+- criarEstilos((c) => StyleSheet.create(...)): hook com cache por
+  tema — o StyleSheet é materializado uma única vez por modo
+- 15 telas transformadas mecanicamente com mapa (propriedade × cor)
+  → token, sensível ao contexto (color '#fff' = texto sobre primária
+  fica fixo; backgroundColor '#fff' = superfície segue o tema)
+- Stack tematizado: header primária no claro / superfície no escuro,
+  contentStyle no fundo do tema, StatusBar coerente
+- Casos especiais: textos do login sobre fundo primária mantidos
+  fixos por design; Switch trackColor e placeholders via useCores
+---
+ README.md                                     |   1 +
+ apps/mobile/app/(app)/cliente-editar/[id].tsx |  18 ++-
+ apps/mobile/app/(app)/cliente-novo.tsx        |  32 ++--
+ apps/mobile/app/(app)/cliente/[id].tsx        |  38 ++---
+ apps/mobile/app/(app)/clientes.tsx            |  44 +++---
+ .../mobile/app/(app)/cobranca/[locacaoId].tsx |  53 +++----
+ apps/mobile/app/(app)/config/impressora.tsx   |  60 ++++++--
+ apps/mobile/app/(app)/deposito.tsx            |  16 +-
+ .../app/(app)/finalizar/[locacaoId].tsx       |  34 +++--
+ .../app/(app)/historico/[locacaoId].tsx       |  22 +--
+ .../app/(app)/locacao-editar/[locacaoId].tsx  |  30 ++--
+ .../app/(app)/locacao-nova/[clienteId].tsx    |  32 ++--
+ apps/mobile/app/(app)/rotas.tsx               |  28 ++--
+ apps/mobile/app/(app)/saldo/[id].tsx          |  48 +++---
+ apps/mobile/app/(app)/sync-erros.tsx          |  40 ++---
+ apps/mobile/app/_layout.tsx                   |  43 ++++--
+ apps/mobile/app/index.tsx                     |  25 ++--
+ apps/mobile/src/theme.tsx                     | 141 ++++++++++++++++++
+ 18 files changed, 466 insertions(+), 239 deletions(-)
+ create mode 100644 apps/mobile/src/theme.tsx
+
+diff --git a/README.md b/README.md
+index e3c6523..1b4bea8 100644
+--- a/README.md
++++ b/README.md
+@@ -224,6 +224,7 @@ Comparação item a item com o prompt original do projeto. Em ordem de prioridad
+ - [x] **Documentação Swagger/OpenAPI** (spec §15): especificação dos endpoints principais em `/api/docs` (Swagger UI via CDN, com exceção pontual de CSP) e `/api/docs/openapi.json`.
+ - [x] **Visibilidade de conflitos no mobile**: `GET /api/conflitos/meus` (só autenticação) e seção "Em revisão no escritório" na tela de Pendências — o cobrador vê quais alterações suas divergiram e aguardam decisão no painel (read-only por design: a resolução é do escritório).
+ - [ ] **Build pré-compilado dos pacotes** (exports map) como alternativa ao runtime via `tsx`.
++- [x] **Modo escuro no mobile** (spec §9): sistema de tema em `src/theme.tsx` — paletas claro (idêntica à original) e escuro (derivada dos tokens do painel), modo Automático/Claro/Escuro persistido na tabela `meta`, headers e fundo do Stack tematizados, seletor na tela de Ajustes. As 15 telas usam `criarEstilos((c) => StyleSheet.create(...))` com cache por tema (StyleSheet materializado uma vez por modo).
+ - [x] **Mobile no CI**: `tsc --noEmit` como build do app Expo — o turbo deixa de pular o pacote e cada push valida os tipos das ~18 telas e serviços (antes, o mobile era o único pacote sem verificação).
+ - [x] **Ambiente de homologação e deploy** (spec §15): Dockerfiles da API (migrations `migrate deploy` na subida) e do painel (Next standalone), `docker-compose.homolog.yml` completo (banco+redis+api+web) e `docs/DEPLOY.md` com migrations versionadas, produção sugerida e checklist pré-produção.
+ 
+diff --git a/apps/mobile/app/(app)/cliente-editar/[id].tsx b/apps/mobile/app/(app)/cliente-editar/[id].tsx
+index c50717b..07eda75 100644
+--- a/apps/mobile/app/(app)/cliente-editar/[id].tsx
++++ b/apps/mobile/app/(app)/cliente-editar/[id].tsx
+@@ -7,8 +7,10 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert } from
+ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+ import { db } from '../../../src/db/schema';
+ import { sincronizar } from '../../../src/services/sync';
++import { criarEstilos } from '../../../src/theme';
+ 
+ export default function ClienteEditarScreen() {
++  const s = useEstilos();
+   const { id } = useLocalSearchParams<{ id: string }>();
+   const [nome, setNome] = useState('');
+   const [telefone, setTelefone] = useState('');
+@@ -79,13 +81,13 @@ export default function ClienteEditarScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
+-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
++  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
+   area: { minHeight: 80, textAlignVertical: 'top' },
+-  dica: { color: '#999', fontSize: 12, marginTop: 8 },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
++  dica: { color: c.textoFraco, fontSize: 12, marginTop: 8 },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++}));
+diff --git a/apps/mobile/app/(app)/cliente-novo.tsx b/apps/mobile/app/(app)/cliente-novo.tsx
+index dae747d..54043a2 100644
+--- a/apps/mobile/app/(app)/cliente-novo.tsx
++++ b/apps/mobile/app/(app)/cliente-novo.tsx
+@@ -9,10 +9,12 @@ import { router, useFocusEffect } from 'expo-router';
+ import * as Location from 'expo-location';
+ import { db } from '../../src/db/schema';
+ import { uuid, sincronizar } from '../../src/services/sync';
++import { criarEstilos } from '../../src/theme';
+ 
+ interface RotaRow { id: string; nome: string }
+ 
+ export default function ClienteNovoScreen() {
++  const s = useEstilos();
+   const [rotas, setRotas] = useState<RotaRow[]>([]);
+   const [nome, setNome] = useState('');
+   const [cpfCnpj, setCpfCnpj] = useState('');
+@@ -167,22 +169,22 @@ export default function ClienteNovoScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  secao: { fontWeight: '700', color: '#1b5e3f', marginTop: 16, marginBottom: 8, fontSize: 15 },
+-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, marginBottom: 8 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  secao: { fontWeight: '700', color: c.primaria, marginTop: 16, marginBottom: 8, fontSize: 15 },
++  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, marginBottom: 8 },
+   linha: { flexDirection: 'row', gap: 8 },
+   meio: { flex: 1 },
+   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+-  chipAtivo: { backgroundColor: '#1b5e3f' },
+-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
+-  chipTextoAtivo: { color: '#fff' },
+-  dica: { color: '#888', fontSize: 13 },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
++  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
++  chipAtivo: { backgroundColor: c.primaria },
++  chipTexto: { color: c.primaria, fontSize: 13 },
++  chipTextoAtivo: { color: c.brancoFixo },
++  dica: { color: c.textoFraco, fontSize: 13 },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 20 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-  rodape: { color: '#999', fontSize: 12, textAlign: 'center', marginTop: 10 },
+-  btnGps: { backgroundColor: '#e8f3ee', borderRadius: 10, padding: 11, marginBottom: 8, borderWidth: 1, borderColor: '#1b5e3f44' },
+-  btnGpsTexto: { color: '#1b5e3f', fontWeight: '600', textAlign: 'center', fontSize: 13 },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++  rodape: { color: c.textoFraco, fontSize: 12, textAlign: 'center', marginTop: 10 },
++  btnGps: { backgroundColor: c.primariaSuave, borderRadius: 10, padding: 11, marginBottom: 8, borderWidth: 1, borderColor: c.primariaTransl },
++  btnGpsTexto: { color: c.primaria, fontWeight: '600', textAlign: 'center', fontSize: 13 },
++}));
+diff --git a/apps/mobile/app/(app)/cliente/[id].tsx b/apps/mobile/app/(app)/cliente/[id].tsx
+index fb6601a..6897397 100644
+--- a/apps/mobile/app/(app)/cliente/[id].tsx
++++ b/apps/mobile/app/(app)/cliente/[id].tsx
+@@ -3,6 +3,7 @@ import { View, Text, FlatList, Pressable, StyleSheet } from 'react-native';
+ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+ import { db } from '../../../src/db/schema';
+ import { formatarBRL } from '@locacoes/shared';
++import { criarEstilos } from '../../../src/theme';
+ 
+ interface SaldoRow {
+   id: string; valor_restante: string; plaqueta: string;
+@@ -24,6 +25,7 @@ const NOME_REGRA: Record<string, string> = {
+ };
+ 
+ export default function ClienteScreen() {
++  const s = useEstilos();
+   const { id } = useLocalSearchParams<{ id: string }>();
+   const [nome, setNome] = useState('');
+   const [locacoes, setLocacoes] = useState<LocacaoRow[]>([]);
+@@ -119,24 +121,24 @@ export default function ClienteScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea', padding: 12 },
+-  titulo: { fontSize: 20, fontWeight: '800', marginBottom: 12, color: '#1b5e3f' },
+-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo, padding: 12 },
++  titulo: { fontSize: 20, fontWeight: '800', marginBottom: 12, color: c.primaria },
++  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
+   cardInativa: { opacity: 0.5 },
+   linha: { flexDirection: 'row', justifyContent: 'space-between' },
+   plaqueta: { fontWeight: '700', fontSize: 16 },
+-  regra: { color: '#1b5e3f', fontWeight: '600' },
+-  endereco: { color: '#666', fontSize: 13, marginTop: 2 },
+-  deve: { color: '#b3261e', marginTop: 4, fontWeight: '600' },
+-  haver: { color: '#1b5e3f', marginTop: 4, fontWeight: '600' },
+-  acao: { color: '#999', fontSize: 12 },
+-  historico: { color: '#1b5e3f', fontSize: 12, fontWeight: '600' },
+-  editar: { color: '#1b5e3f', fontWeight: '600', marginBottom: 12 },
+-  botaoNova: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
+-  botaoNovaTexto: { color: '#fff', fontWeight: '700', fontSize: 15 },
+-  vazio: { textAlign: 'center', color: '#888', marginTop: 40 },
+-  saldoCard: { backgroundColor: '#fdecea', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#f5c6c0' },
+-  saldoTexto: { color: '#8a1c12', fontWeight: '600', fontSize: 13 },
+-  saldoAcao: { color: '#b3261e', fontSize: 11, marginTop: 4 },
+-});
++  regra: { color: c.primaria, fontWeight: '600' },
++  endereco: { color: c.textoSuave, fontSize: 13, marginTop: 2 },
++  deve: { color: c.erro, marginTop: 4, fontWeight: '600' },
++  haver: { color: c.primaria, marginTop: 4, fontWeight: '600' },
++  acao: { color: c.textoFraco, fontSize: 12 },
++  historico: { color: c.primaria, fontSize: 12, fontWeight: '600' },
++  editar: { color: c.primaria, fontWeight: '600', marginBottom: 12 },
++  botaoNova: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
++  botaoNovaTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 15 },
++  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40 },
++  saldoCard: { backgroundColor: c.erroSuave, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: c.erroBorda },
++  saldoTexto: { color: c.erro, fontWeight: '600', fontSize: 13 },
++  saldoAcao: { color: c.erro, fontSize: 11, marginTop: 4 },
++}));
+diff --git a/apps/mobile/app/(app)/clientes.tsx b/apps/mobile/app/(app)/clientes.tsx
+index 561c062..8f5fbc7 100644
+--- a/apps/mobile/app/(app)/clientes.tsx
++++ b/apps/mobile/app/(app)/clientes.tsx
+@@ -6,6 +6,7 @@ import { useApp } from '../../src/store/app';
+ import { sincronizar, contarPendentes, contarErros } from '../../src/services/sync';
+ import { mapaVencidasPorCliente } from '../../src/services/vencidasLocal';
+ import { PERMISSOES } from '@locacoes/shared';
++import { criarEstilos } from '../../src/theme';
+ 
+ interface ClienteRow {
+   id: string;
+@@ -16,6 +17,7 @@ interface ClienteRow {
+ }
+ 
+ export default function ClientesScreen() {
++  const s = useEstilos();
+   const { rotaId, rotaNome } = useLocalSearchParams<{ rotaId?: string; rotaNome?: string }>();
+   const { usuario, pendentes, setPendentes, temPermissao } = useApp();
+   const [busca, setBusca] = useState('');
+@@ -124,28 +126,28 @@ export default function ClientesScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
+   topo: { flexDirection: 'row', padding: 12, gap: 8 },
+-  busca: { flex: 1, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
+-  btnSync: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
+-  btnNovo: { backgroundColor: '#0e3a24', borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
+-  btnSyncTexto: { color: '#fff', fontWeight: '700' },
+-  status: { textAlign: 'center', color: '#666', marginBottom: 4, fontSize: 12 },
+-  card: { backgroundColor: '#fff', marginHorizontal: 12, marginBottom: 8, borderRadius: 10, padding: 14 },
++  busca: { flex: 1, backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
++  btnSync: { backgroundColor: c.primaria, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
++  btnNovo: { backgroundColor: c.primariaEscura, borderRadius: 10, paddingHorizontal: 14, justifyContent: 'center' },
++  btnSyncTexto: { color: c.brancoFixo, fontWeight: '700' },
++  status: { textAlign: 'center', color: c.textoSuave, marginBottom: 4, fontSize: 12 },
++  card: { backgroundColor: c.cartao, marginHorizontal: 12, marginBottom: 8, borderRadius: 10, padding: 14 },
+   nomeLinha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+-  nome: { fontWeight: '700', fontSize: 16, color: '#222' },
+-  cardVencida: { borderLeftWidth: 4, borderLeftColor: '#e0a000' },
+-  badgeVencida: { backgroundColor: '#fff3cd', color: '#8a6d00', fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
++  nome: { fontWeight: '700', fontSize: 16, color: c.texto },
++  cardVencida: { borderLeftWidth: 4, borderLeftColor: c.avisoForte },
++  badgeVencida: { backgroundColor: c.avisoSuave, color: c.aviso, fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
+   filtroVencidas: { paddingHorizontal: 14, paddingBottom: 6 },
+-  filtroTexto: { color: '#888', fontSize: 13 },
+-  filtroTextoAtivo: { color: '#8a6d00', fontWeight: '700' },
+-  faixaErro: { backgroundColor: '#fdecea', marginHorizontal: 12, marginBottom: 8, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: '#f5c6c0' },
+-  faixaErroTexto: { color: '#8a1c12', fontWeight: '600', fontSize: 13, textAlign: 'center' },
+-  tituloRota: { paddingHorizontal: 14, color: '#1b5e3f', fontWeight: '800', fontSize: 16, marginBottom: 4 },
+-  detalhe: { color: '#666', marginTop: 2, fontSize: 13 },
+-  vazio: { textAlign: 'center', color: '#888', marginTop: 40, paddingHorizontal: 24 },
+-  rodape: { color: '#999', fontSize: 11 },
++  filtroTexto: { color: c.textoFraco, fontSize: 13 },
++  filtroTextoAtivo: { color: c.aviso, fontWeight: '700' },
++  faixaErro: { backgroundColor: c.erroSuave, marginHorizontal: 12, marginBottom: 8, borderRadius: 8, padding: 10, borderWidth: 1, borderColor: c.erroBorda },
++  faixaErroTexto: { color: c.erro, fontWeight: '600', fontSize: 13, textAlign: 'center' },
++  tituloRota: { paddingHorizontal: 14, color: c.primaria, fontWeight: '800', fontSize: 16, marginBottom: 4 },
++  detalhe: { color: c.textoSuave, marginTop: 2, fontSize: 13 },
++  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40, paddingHorizontal: 24 },
++  rodape: { color: c.textoFraco, fontSize: 11 },
+   rodapeLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 6 },
+-  rodapeLink: { color: '#1b5e3f', fontSize: 11, fontWeight: '700' },
+-});
++  rodapeLink: { color: c.primaria, fontSize: 11, fontWeight: '700' },
++}));
+diff --git a/apps/mobile/app/(app)/cobranca/[locacaoId].tsx b/apps/mobile/app/(app)/cobranca/[locacaoId].tsx
+index 46a1ad6..e8fdbc9 100644
+--- a/apps/mobile/app/(app)/cobranca/[locacaoId].tsx
++++ b/apps/mobile/app/(app)/cobranca/[locacaoId].tsx
+@@ -16,6 +16,7 @@ import { sincronizar, estaOnline } from '../../../src/services/sync';
+ import { imprimirRecibo } from '../../../src/services/impressora';
+ import { api } from '../../../src/services/api';
+ import { formatarBRL, PERMISSOES } from '@locacoes/shared';
++import { criarEstilos, useCores } from '../../../src/theme';
+ 
+ const FORMAS = ['DINHEIRO', 'PIX_MANUAL', 'CARTAO', 'PIX_MERCADO_PAGO'] as const;
+ const NOME_FORMA: Record<string, string> = {
+@@ -26,6 +27,8 @@ const NOME_FORMA: Record<string, string> = {
+ };
+ 
+ export default function CobrancaScreen() {
++  const s = useEstilos();
++  const cores = useCores();
+   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
+   const { usuario, temPermissao } = useApp();
+ 
+@@ -248,7 +251,7 @@ export default function CobrancaScreen() {
+       {temPermissao(PERMISSOES.MARCAR_TROCA_PANO) && (
+         <View style={s.switchLinha}>
+           <Text style={s.label}>Troca de pano</Text>
+-          <Switch value={trocaPano} onValueChange={setTrocaPano} trackColor={{ true: '#1b5e3f' }} />
++          <Switch value={trocaPano} onValueChange={setTrocaPano} trackColor={{ true: cores.primaria }} />
+         </View>
+       )}
+ 
+@@ -274,33 +277,33 @@ export default function CobrancaScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  cliente: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
+-  produto: { color: '#666', marginBottom: 16 },
+-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
+-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
+-  erro: { color: '#b3261e', marginTop: 8, fontWeight: '600' },
+-  resumo: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginTop: 16 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  cliente: { fontSize: 20, fontWeight: '800', color: c.primaria },
++  produto: { color: c.textoSuave, marginBottom: 16 },
++  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
++  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
++  erro: { color: c.erro, marginTop: 8, fontWeight: '600' },
++  resumo: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginTop: 16 },
+   passoLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+-  passoDesc: { color: '#555', flex: 1, fontSize: 13 },
++  passoDesc: { color: c.textoSuave, flex: 1, fontSize: 13 },
+   passoValor: { fontWeight: '600', fontSize: 13 },
+   formas: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
+-  chipAtivo: { backgroundColor: '#1b5e3f' },
+-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
+-  chipTextoAtivo: { color: '#fff' },
++  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 7 },
++  chipAtivo: { backgroundColor: c.primaria },
++  chipTexto: { color: c.primaria, fontSize: 13 },
++  chipTextoAtivo: { color: c.brancoFixo },
+   switchLinha: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-  vazio: { textAlign: 'center', marginTop: 40, color: '#888' },
+-  avisoLock: { backgroundColor: '#fdecea', borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#f5c6c0' },
+-  avisoLockTexto: { color: '#8a1c12', fontSize: 13, fontWeight: '600' },
+-  linkFinalizar: { color: '#888', textAlign: 'center', marginTop: 18, textDecorationLine: 'underline', fontSize: 13 },
+-  pixContainer: { flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', padding: 24 },
+-  pixTitulo: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++  vazio: { textAlign: 'center', marginTop: 40, color: c.textoFraco },
++  avisoLock: { backgroundColor: c.erroSuave, borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: c.erroBorda },
++  avisoLockTexto: { color: c.erro, fontSize: 13, fontWeight: '600' },
++  linkFinalizar: { color: c.textoFraco, textAlign: 'center', marginTop: 18, textDecorationLine: 'underline', fontSize: 13 },
++  pixContainer: { flex: 1, backgroundColor: c.cartao, alignItems: 'center', justifyContent: 'center', padding: 24 },
++  pixTitulo: { fontSize: 20, fontWeight: '800', color: c.primaria },
+   pixValor: { fontSize: 28, fontWeight: '800', marginVertical: 12 },
+-  qr: { padding: 16, backgroundColor: '#fff', borderRadius: 12, elevation: 3 },
+-  pixDica: { color: '#666', textAlign: 'center', marginTop: 16, fontSize: 13 },
+-});
++  qr: { padding: 16, backgroundColor: c.cartao, borderRadius: 12, elevation: 3 },
++  pixDica: { color: c.textoSuave, textAlign: 'center', marginTop: 16, fontSize: 13 },
++}));
+diff --git a/apps/mobile/app/(app)/config/impressora.tsx b/apps/mobile/app/(app)/config/impressora.tsx
+index c823c83..83ed5d8 100644
+--- a/apps/mobile/app/(app)/config/impressora.tsx
++++ b/apps/mobile/app/(app)/config/impressora.tsx
+@@ -3,8 +3,17 @@ import { View, Text, Pressable, FlatList, StyleSheet, ActivityIndicator } from '
+ import {
+   impressoraDisponivel, parearImpressora, conectarImpressora,
+ } from '../../../src/services/impressora';
++import { criarEstilos, useTema, type ModoTema } from '../../../src/theme';
++
++const MODOS: { valor: ModoTema; rotulo: string }[] = [
++  { valor: 'auto', rotulo: 'Automático' },
++  { valor: 'claro', rotulo: 'Claro' },
++  { valor: 'escuro', rotulo: 'Escuro' },
++];
+ 
+ export default function ImpressoraScreen() {
++  const s = useEstilos();
++  const { modo, setModo } = useTema();
+   const [dispositivos, setDispositivos] = useState<{ nome: string; endereco: string }[]>([]);
+   const [conectado, setConectado] = useState<string | null>(null);
+   const [buscando, setBuscando] = useState(false);
+@@ -42,6 +51,21 @@ export default function ImpressoraScreen() {
+ 
+   return (
+     <View style={s.container}>
++      <Text style={s.titulo}>Aparência</Text>
++      <View style={s.seletorTema}>
++        {MODOS.map((m) => (
++          <Pressable
++            key={m.valor}
++            onPress={() => setModo(m.valor)}
++            style={[s.opcaoTema, modo === m.valor && s.opcaoTemaAtiva]}
++          >
++            <Text style={modo === m.valor ? s.opcaoTemaTextoAtivo : s.opcaoTemaTexto}>
++              {m.rotulo}
++            </Text>
++          </Pressable>
++        ))}
++      </View>
++
+       <Text style={s.titulo}>Impressora térmica</Text>
+ 
+       {!disponivel ? (
+@@ -87,18 +111,26 @@ export default function ImpressoraScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea', padding: 16 },
+-  titulo: { fontSize: 20, fontWeight: '800', color: '#1b5e3f', marginBottom: 16 },
+-  aviso: { backgroundColor: '#fff', borderRadius: 12, padding: 16 },
+-  avisoTitulo: { fontWeight: '700', marginBottom: 8, color: '#8a6d00' },
+-  avisoTexto: { color: '#555', fontSize: 13, lineHeight: 20 },
+-  conectado: { color: '#1b5e3f', fontWeight: '700', marginBottom: 12 },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
+-  botaoTexto: { color: '#fff', fontWeight: '700' },
+-  erro: { color: '#b3261e', marginBottom: 8 },
+-  dispositivo: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo, padding: 16 },
++  titulo: { fontSize: 20, fontWeight: '800', color: c.primaria, marginBottom: 16 },
++  seletorTema: {
++    flexDirection: 'row', backgroundColor: c.cartao, borderRadius: 12,
++    padding: 4, marginBottom: 24, gap: 4,
++  },
++  opcaoTema: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
++  opcaoTemaAtiva: { backgroundColor: c.primaria },
++  opcaoTemaTexto: { color: c.textoSuave, fontWeight: '600', fontSize: 13 },
++  opcaoTemaTextoAtivo: { color: c.brancoFixo, fontWeight: '700', fontSize: 13 },
++  aviso: { backgroundColor: c.cartao, borderRadius: 12, padding: 16 },
++  avisoTitulo: { fontWeight: '700', marginBottom: 8, color: c.aviso },
++  avisoTexto: { color: c.textoSuave, fontSize: 13, lineHeight: 20 },
++  conectado: { color: c.primaria, fontWeight: '700', marginBottom: 12 },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginBottom: 12 },
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700' },
++  erro: { color: c.erro, marginBottom: 8 },
++  dispositivo: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
+   dispositivoNome: { fontWeight: '700' },
+-  dispositivoEnd: { color: '#999', fontSize: 12 },
+-  dica: { color: '#888', textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
+-});
++  dispositivoEnd: { color: c.textoFraco, fontSize: 12 },
++  dica: { color: c.textoFraco, textAlign: 'center', marginTop: 24, paddingHorizontal: 16 },
++}));
+diff --git a/apps/mobile/app/(app)/deposito.tsx b/apps/mobile/app/(app)/deposito.tsx
+index 2204822..fe65c4f 100644
+--- a/apps/mobile/app/(app)/deposito.tsx
++++ b/apps/mobile/app/(app)/deposito.tsx
+@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
+ import { View, Text, FlatList, StyleSheet } from 'react-native';
+ import { useFocusEffect } from 'expo-router';
+ import { db } from '../../src/db/schema';
++import { criarEstilos } from '../../src/theme';
+ 
+ interface ProdutoDepositoRow {
+   id: string;
+@@ -16,6 +17,7 @@ interface ProdutoDepositoRow {
+ }
+ 
+ export default function DepositoScreen() {
++  const s = useEstilos();
+   const [produtos, setProdutos] = useState<ProdutoDepositoRow[]>([]);
+ 
+   useFocusEffect(
+@@ -68,12 +70,12 @@ export default function DepositoScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
+   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+   plaqueta: { fontWeight: '700', fontSize: 16 },
+-  deposito: { color: '#1b5e3f', fontWeight: '600', fontSize: 13 },
+-  detalhe: { color: '#666', fontSize: 13, marginTop: 4 },
+-  vazio: { textAlign: 'center', color: '#888', marginTop: 40, paddingHorizontal: 24 },
+-});
++  deposito: { color: c.primaria, fontWeight: '600', fontSize: 13 },
++  detalhe: { color: c.textoSuave, fontSize: 13, marginTop: 4 },
++  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40, paddingHorizontal: 24 },
++}));
+diff --git a/apps/mobile/app/(app)/finalizar/[locacaoId].tsx b/apps/mobile/app/(app)/finalizar/[locacaoId].tsx
+index 83936b2..ec424f8 100644
+--- a/apps/mobile/app/(app)/finalizar/[locacaoId].tsx
++++ b/apps/mobile/app/(app)/finalizar/[locacaoId].tsx
+@@ -7,6 +7,7 @@ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+ import { db } from '../../../src/db/schema';
+ import { sincronizar } from '../../../src/services/sync';
+ import { formatarBRL } from '@locacoes/shared';
++import { criarEstilos } from '../../../src/theme';
+ 
+ interface DepositoRow { id: string; nome: string }
+ interface LocacaoRow {
+@@ -15,6 +16,7 @@ interface LocacaoRow {
+ }
+ 
+ export default function FinalizarScreen() {
++  const s = useEstilos();
+   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
+   const [locacao, setLocacao] = useState<LocacaoRow | null>(null);
+   const [depositos, setDepositos] = useState<DepositoRow[]>([]);
+@@ -142,21 +144,21 @@ export default function FinalizarScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  titulo: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
+-  subtitulo: { color: '#666', marginBottom: 12 },
+-  aviso: { backgroundColor: '#fff3cd', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#ffe69c' },
+-  avisoTexto: { color: '#8a6d00', fontSize: 13 },
+-  secao: { fontWeight: '700', color: '#444', marginTop: 16, marginBottom: 8 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  titulo: { fontSize: 20, fontWeight: '800', color: c.primaria },
++  subtitulo: { color: c.textoSuave, marginBottom: 12 },
++  aviso: { backgroundColor: c.avisoSuave, borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: c.avisoBorda },
++  avisoTexto: { color: c.aviso, fontSize: 13 },
++  secao: { fontWeight: '700', color: c.textoSuave, marginTop: 16, marginBottom: 8 },
+   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+-  chipAtivo: { backgroundColor: '#1b5e3f' },
+-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
+-  chipTextoAtivo: { color: '#fff' },
+-  dica: { color: '#888', fontSize: 13, marginTop: 4 },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
++  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
++  chipAtivo: { backgroundColor: c.primaria },
++  chipTexto: { color: c.primaria, fontSize: 13 },
++  chipTextoAtivo: { color: c.brancoFixo },
++  dica: { color: c.textoFraco, fontSize: 13, marginTop: 4 },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-  vazio: { textAlign: 'center', marginTop: 40, color: '#888' },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++  vazio: { textAlign: 'center', marginTop: 40, color: c.textoFraco },
++}));
+diff --git a/apps/mobile/app/(app)/historico/[locacaoId].tsx b/apps/mobile/app/(app)/historico/[locacaoId].tsx
+index f03df86..89e2d04 100644
+--- a/apps/mobile/app/(app)/historico/[locacaoId].tsx
++++ b/apps/mobile/app/(app)/historico/[locacaoId].tsx
+@@ -11,6 +11,7 @@ import { estaOnline } from '../../../src/services/sync';
+ import { imprimirRecibo } from '../../../src/services/impressora';
+ import { useApp } from '../../../src/store/app';
+ import { formatarBRL } from '@locacoes/shared';
++import { criarEstilos } from '../../../src/theme';
+ 
+ interface ItemHistorico {
+   id: string;
+@@ -32,6 +33,7 @@ const NOME_FORMA: Record<string, string> = {
+ };
+ 
+ export default function HistoricoScreen() {
++  const s = useEstilos();
+   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
+   const { usuario } = useApp();
+   const [itens, setItens] = useState<ItemHistorico[]>([]);
+@@ -172,14 +174,14 @@ export default function HistoricoScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  cabecalho: { padding: 12, paddingBottom: 0, color: '#1b5e3f', fontWeight: '700' },
+-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  cabecalho: { padding: 12, paddingBottom: 0, color: c.primaria, fontWeight: '700' },
++  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8 },
+   linha: { flexDirection: 'row', justifyContent: 'space-between' },
+-  data: { color: '#666', fontSize: 13 },
+-  valor: { fontWeight: '800', fontSize: 16, color: '#1b5e3f' },
+-  detalhe: { color: '#888', fontSize: 12, marginTop: 4 },
+-  reimprimir: { color: '#1b5e3f', fontSize: 13, fontWeight: '600', marginTop: 8 },
+-  vazio: { textAlign: 'center', color: '#888', marginTop: 40 },
+-});
++  data: { color: c.textoSuave, fontSize: 13 },
++  valor: { fontWeight: '800', fontSize: 16, color: c.primaria },
++  detalhe: { color: c.textoFraco, fontSize: 12, marginTop: 4 },
++  reimprimir: { color: c.primaria, fontSize: 13, fontWeight: '600', marginTop: 8 },
++  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40 },
++}));
+diff --git a/apps/mobile/app/(app)/locacao-editar/[locacaoId].tsx b/apps/mobile/app/(app)/locacao-editar/[locacaoId].tsx
+index e2919aa..0e89973 100644
+--- a/apps/mobile/app/(app)/locacao-editar/[locacaoId].tsx
++++ b/apps/mobile/app/(app)/locacao-editar/[locacaoId].tsx
+@@ -6,6 +6,7 @@ import { View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert } from
+ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+ import { db } from '../../../src/db/schema';
+ import { sincronizar } from '../../../src/services/sync';
++import { criarEstilos } from '../../../src/theme';
+ 
+ const REGRAS = [
+   ['VALOR_FIXO', 'Valor fixo'],
+@@ -15,6 +16,7 @@ const REGRAS = [
+ const FREQUENCIAS = [['SEMANAL', 'Semanal'], ['QUINZENAL', 'Quinzenal'], ['MENSAL', 'Mensal']] as const;
+ 
+ export default function LocacaoEditarScreen() {
++  const s = useEstilos();
+   const { locacaoId } = useLocalSearchParams<{ locacaoId: string }>();
+   const [contexto, setContexto] = useState('');
+   const [regra, setRegra] = useState<(typeof REGRAS)[number][0]>('VALOR_FIXO');
+@@ -122,19 +124,19 @@ export default function LocacaoEditarScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  contexto: { fontSize: 18, fontWeight: '800', color: '#1b5e3f' },
+-  aviso: { color: '#8a6d00', fontSize: 12, marginTop: 6, backgroundColor: '#fff3cd', padding: 10, borderRadius: 8 },
+-  secao: { fontWeight: '700', color: '#444', marginTop: 16, marginBottom: 8 },
+-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
+-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  contexto: { fontSize: 18, fontWeight: '800', color: c.primaria },
++  aviso: { color: c.aviso, fontSize: 12, marginTop: 6, backgroundColor: c.avisoSuave, padding: 10, borderRadius: 8 },
++  secao: { fontWeight: '700', color: c.textoSuave, marginTop: 16, marginBottom: 8 },
++  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
++  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
+   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+-  chipAtivo: { backgroundColor: '#1b5e3f' },
+-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
+-  chipTextoAtivo: { color: '#fff' },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
++  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
++  chipAtivo: { backgroundColor: c.primaria },
++  chipTexto: { color: c.primaria, fontSize: 13 },
++  chipTextoAtivo: { color: c.brancoFixo },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++}));
+diff --git a/apps/mobile/app/(app)/locacao-nova/[clienteId].tsx b/apps/mobile/app/(app)/locacao-nova/[clienteId].tsx
+index 5a657ea..880e264 100644
+--- a/apps/mobile/app/(app)/locacao-nova/[clienteId].tsx
++++ b/apps/mobile/app/(app)/locacao-nova/[clienteId].tsx
+@@ -8,6 +8,7 @@ import {
+ import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+ import { db } from '../../../src/db/schema';
+ import { uuid, sincronizar } from '../../../src/services/sync';
++import { criarEstilos } from '../../../src/theme';
+ 
+ interface ProdutoRow { id: string; plaqueta: string; contador: number }
+ interface EnderecoRow { id: string; logradouro: string; numero: string; bairro: string }
+@@ -20,6 +21,7 @@ const REGRAS = [
+ const FREQUENCIAS = [['SEMANAL', 'Semanal'], ['QUINZENAL', 'Quinzenal'], ['MENSAL', 'Mensal']] as const;
+ 
+ export default function LocacaoNovaScreen() {
++  const s = useEstilos();
+   const { clienteId } = useLocalSearchParams<{ clienteId: string }>();
+   const [clienteNome, setClienteNome] = useState('');
+   const [produtos, setProdutos] = useState<ProdutoRow[]>([]);
+@@ -183,20 +185,20 @@ export default function LocacaoNovaScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  cliente: { fontSize: 20, fontWeight: '800', color: '#1b5e3f', marginBottom: 4 },
+-  secao: { fontWeight: '700', color: '#444', marginTop: 16, marginBottom: 8 },
+-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
+-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  cliente: { fontSize: 20, fontWeight: '800', color: c.primaria, marginBottom: 4 },
++  secao: { fontWeight: '700', color: c.textoSuave, marginTop: 16, marginBottom: 8 },
++  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
++  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15 },
+   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '100%' },
+-  chipAtivo: { backgroundColor: '#1b5e3f' },
+-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
+-  chipTextoAtivo: { color: '#fff' },
+-  dica: { color: '#888', fontSize: 13 },
+-  alerta: { color: '#8a6d00', fontSize: 12, marginTop: 6 },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
++  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '100%' },
++  chipAtivo: { backgroundColor: c.primaria },
++  chipTexto: { color: c.primaria, fontSize: 13 },
++  chipTextoAtivo: { color: c.brancoFixo },
++  dica: { color: c.textoFraco, fontSize: 13 },
++  alerta: { color: c.aviso, fontSize: 12, marginTop: 6 },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++}));
+diff --git a/apps/mobile/app/(app)/rotas.tsx b/apps/mobile/app/(app)/rotas.tsx
+index ffa3d70..81a454e 100644
+--- a/apps/mobile/app/(app)/rotas.tsx
++++ b/apps/mobile/app/(app)/rotas.tsx
+@@ -8,6 +8,7 @@ import { db } from '../../src/db/schema';
+ import { useApp } from '../../src/store/app';
+ import { sincronizar, contarPendentes } from '../../src/services/sync';
+ import { listarVencidasLocal } from '../../src/services/vencidasLocal';
++import { criarEstilos } from '../../src/theme';
+ 
+ interface RotaCard {
+   id: string;
+@@ -17,6 +18,7 @@ interface RotaCard {
+ }
+ 
+ export default function RotasScreen() {
++  const s = useEstilos();
+   const { usuario, pendentes, setPendentes } = useApp();
+   const [rotas, setRotas] = useState<RotaCard[]>([]);
+   const [statusSync, setStatusSync] = useState('');
+@@ -97,18 +99,18 @@ export default function RotasScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
+   topo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, paddingBottom: 4 },
+-  saudacao: { fontSize: 16, color: '#555' },
+-  btnSync: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
+-  btnSyncTexto: { color: '#fff', fontWeight: '700' },
+-  status: { textAlign: 'center', color: '#666', fontSize: 12 },
+-  titulo: { fontSize: 22, fontWeight: '800', color: '#1b5e3f', paddingHorizontal: 14, marginTop: 6 },
+-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10 },
++  saudacao: { fontSize: 16, color: c.textoSuave },
++  btnSync: { backgroundColor: c.primaria, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 8 },
++  btnSyncTexto: { color: c.brancoFixo, fontWeight: '700' },
++  status: { textAlign: 'center', color: c.textoSuave, fontSize: 12 },
++  titulo: { fontSize: 22, fontWeight: '800', color: c.primaria, paddingHorizontal: 14, marginTop: 6 },
++  card: { backgroundColor: c.cartao, borderRadius: 12, padding: 16, marginBottom: 10 },
+   linha: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+-  nome: { fontWeight: '800', fontSize: 18, color: '#222' },
+-  badgeVencida: { backgroundColor: '#fff3cd', color: '#8a6d00', fontSize: 12, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+-  detalhe: { color: '#888', marginTop: 4 },
+-  vazio: { textAlign: 'center', color: '#888', marginTop: 40, paddingHorizontal: 24 },
+-});
++  nome: { fontWeight: '800', fontSize: 18, color: c.texto },
++  badgeVencida: { backgroundColor: c.avisoSuave, color: c.aviso, fontSize: 12, fontWeight: '700', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
++  detalhe: { color: c.textoFraco, marginTop: 4 },
++  vazio: { textAlign: 'center', color: c.textoFraco, marginTop: 40, paddingHorizontal: 24 },
++}));
+diff --git a/apps/mobile/app/(app)/saldo/[id].tsx b/apps/mobile/app/(app)/saldo/[id].tsx
+index 48dd99f..d419d63 100644
+--- a/apps/mobile/app/(app)/saldo/[id].tsx
++++ b/apps/mobile/app/(app)/saldo/[id].tsx
+@@ -8,6 +8,7 @@ import { db } from '../../../src/db/schema';
+ import { api } from '../../../src/services/api';
+ import { sincronizar, estaOnline } from '../../../src/services/sync';
+ import { formatarBRL } from '@locacoes/shared';
++import { criarEstilos } from '../../../src/theme';
+ 
+ interface SaldoRow {
+   id: string; valor_original: string; valor_restante: string; status: string;
+@@ -24,6 +25,7 @@ const NOME_FORMA: Record<string, string> = {
+ const FORMAS = [['DINHEIRO', 'Dinheiro'], ['PIX_MANUAL', 'PIX manual'], ['CARTAO', 'Cartão']] as const;
+ 
+ export default function SaldoScreen() {
++  const s = useEstilos();
+   const { id } = useLocalSearchParams<{ id: string }>();
+   const [saldo, setSaldo] = useState<SaldoRow | null>(null);
+   const [pagamentos, setPagamentos] = useState<PagamentoRow[]>([]);
+@@ -127,28 +129,28 @@ export default function SaldoScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  cliente: { fontSize: 20, fontWeight: '800', color: '#1b5e3f' },
+-  detalhe: { color: '#666', marginBottom: 16 },
+-  cartao: { backgroundColor: '#fff', borderRadius: 12, padding: 18, alignItems: 'center', marginBottom: 16 },
+-  rotulo: { color: '#888', fontSize: 12, textTransform: 'uppercase' },
+-  restante: { fontSize: 30, fontWeight: '800', color: '#b3261e', marginVertical: 4 },
+-  original: { color: '#999', fontSize: 12 },
+-  label: { fontWeight: '600', color: '#444', marginTop: 12, marginBottom: 4 },
+-  input: { backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  cliente: { fontSize: 20, fontWeight: '800', color: c.primaria },
++  detalhe: { color: c.textoSuave, marginBottom: 16 },
++  cartao: { backgroundColor: c.cartao, borderRadius: 12, padding: 18, alignItems: 'center', marginBottom: 16 },
++  rotulo: { color: c.textoFraco, fontSize: 12, textTransform: 'uppercase' },
++  restante: { fontSize: 30, fontWeight: '800', color: c.erro, marginVertical: 4 },
++  original: { color: c.textoFraco, fontSize: 12 },
++  label: { fontWeight: '600', color: c.textoSuave, marginTop: 12, marginBottom: 4 },
++  input: { backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 },
+   formas: { flexDirection: 'row', gap: 8, marginTop: 4 },
+-  chip: { borderWidth: 1, borderColor: '#1b5e3f', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
+-  chipAtivo: { backgroundColor: '#1b5e3f' },
+-  chipTexto: { color: '#1b5e3f', fontSize: 13 },
+-  chipTextoAtivo: { color: '#fff' },
+-  botao: { backgroundColor: '#1b5e3f', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
++  chip: { borderWidth: 1, borderColor: c.primaria, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8 },
++  chipAtivo: { backgroundColor: c.primaria },
++  chipTexto: { color: c.primaria, fontSize: 13 },
++  chipTextoAtivo: { color: c.brancoFixo },
++  botao: { backgroundColor: c.primaria, borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 24 },
+   botaoOff: { opacity: 0.4 },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-  vazio: { textAlign: 'center', marginTop: 40, color: '#888' },
+-  pagamento: { backgroundColor: '#fff', borderRadius: 10, padding: 12, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+-  pagamentoData: { fontWeight: '600', color: '#333' },
+-  pagamentoForma: { color: '#888', fontSize: 12 },
+-  pagamentoValor: { fontWeight: '800', color: '#1b5e3f', fontSize: 16 },
+-  dicaSync: { color: '#999', fontSize: 11, marginTop: 8, textAlign: 'center' },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++  vazio: { textAlign: 'center', marginTop: 40, color: c.textoFraco },
++  pagamento: { backgroundColor: c.cartao, borderRadius: 10, padding: 12, marginTop: 8, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
++  pagamentoData: { fontWeight: '600', color: c.texto },
++  pagamentoForma: { color: c.textoFraco, fontSize: 12 },
++  pagamentoValor: { fontWeight: '800', color: c.primaria, fontSize: 16 },
++  dicaSync: { color: c.textoFraco, fontSize: 11, marginTop: 8, textAlign: 'center' },
++}));
+diff --git a/apps/mobile/app/(app)/sync-erros.tsx b/apps/mobile/app/(app)/sync-erros.tsx
+index e980154..033a33f 100644
+--- a/apps/mobile/app/(app)/sync-erros.tsx
++++ b/apps/mobile/app/(app)/sync-erros.tsx
+@@ -11,6 +11,7 @@ import { useFocusEffect } from 'expo-router';
+ import { db } from '../../src/db/schema';
+ import { sincronizar, estaOnline } from '../../src/services/sync';
+ import { api } from '../../src/services/api';
++import { criarEstilos } from '../../src/theme';
+ 
+ interface ErroRow {
+   registro_id: string;
+@@ -65,6 +66,7 @@ const NOME_ENTIDADE: Record<string, string> = {
+ };
+ 
+ export default function SyncErrosScreen() {
++  const s = useEstilos();
+   const [erros, setErros] = useState<ErroRow[]>([]);
+   const [conflitos, setConflitos] = useState<ConflitoMeu[]>([]);
+ 
+@@ -194,26 +196,26 @@ export default function SyncErrosScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#f5f2ea' },
+-  card: { backgroundColor: '#fff', borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: '#b3261e' },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.fundo },
++  card: { backgroundColor: c.cartao, borderRadius: 10, padding: 14, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: c.erro },
+   linha: { flexDirection: 'row', justifyContent: 'space-between' },
+-  tipo: { fontWeight: '700', color: '#b3261e', fontSize: 13 },
+-  data: { color: '#999', fontSize: 11 },
++  tipo: { fontWeight: '700', color: c.erro, fontSize: 13 },
++  data: { color: c.textoFraco, fontSize: 11 },
+   descricao: { fontWeight: '600', fontSize: 15, marginTop: 4 },
+-  mensagem: { color: '#666', fontSize: 13, marginTop: 4 },
++  mensagem: { color: c.textoSuave, fontSize: 13, marginTop: 4 },
+   acoes: { flexDirection: 'row', gap: 8, marginTop: 10 },
+-  btnRetry: { backgroundColor: '#1b5e3f', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+-  btnRetryTexto: { color: '#fff', fontWeight: '700', fontSize: 13 },
+-  btnDescartar: { borderWidth: 1, borderColor: '#b3261e', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
+-  btnDescartarTexto: { color: '#b3261e', fontWeight: '600', fontSize: 13 },
++  btnRetry: { backgroundColor: c.primaria, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
++  btnRetryTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 13 },
++  btnDescartar: { borderWidth: 1, borderColor: c.erro, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 8 },
++  btnDescartarTexto: { color: c.erro, fontWeight: '600', fontSize: 13 },
+   vazioBox: { alignItems: 'center', marginTop: 60 },
+-  vazioTitulo: { fontWeight: '800', color: '#1b5e3f', fontSize: 16 },
+-  vazio: { color: '#888', marginTop: 4 },
+-  tituloConflitos: { fontWeight: '800', color: '#8a6d00', fontSize: 15 },
+-  subtituloConflitos: { color: '#8a6d00', fontSize: 12, marginTop: 2, marginBottom: 8 },
+-  cardConflito: { backgroundColor: '#fff8e6', borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: '#d4a017' },
+-  conflitoTipo: { fontWeight: '700', color: '#8a6d00', fontSize: 13 },
+-  conflitoData: { color: '#999', fontSize: 11 },
+-  conflitoCampos: { color: '#666', fontSize: 13, marginTop: 4 },
+-});
++  vazioTitulo: { fontWeight: '800', color: c.primaria, fontSize: 16 },
++  vazio: { color: c.textoFraco, marginTop: 4 },
++  tituloConflitos: { fontWeight: '800', color: c.aviso, fontSize: 15 },
++  subtituloConflitos: { color: c.aviso, fontSize: 12, marginTop: 2, marginBottom: 8 },
++  cardConflito: { backgroundColor: c.avisoSuave, borderRadius: 10, padding: 12, marginBottom: 8, borderLeftWidth: 4, borderLeftColor: c.avisoForte },
++  conflitoTipo: { fontWeight: '700', color: c.aviso, fontSize: 13 },
++  conflitoData: { color: c.textoFraco, fontSize: 11 },
++  conflitoCampos: { color: c.textoSuave, fontSize: 13, marginTop: 4 },
++}));
+diff --git a/apps/mobile/app/_layout.tsx b/apps/mobile/app/_layout.tsx
+index 4c8be84..ec92e82 100644
+--- a/apps/mobile/app/_layout.tsx
++++ b/apps/mobile/app/_layout.tsx
+@@ -1,17 +1,25 @@
+ import { useEffect } from 'react';
++import { StatusBar } from 'react-native';
+ import { Stack } from 'expo-router';
+ import { inicializarBanco, migrarBanco } from '../src/db/schema';
+ import { registrarSyncBackground } from '../src/services/backgroundSync';
++import { ProvedorTema, useTema } from '../src/theme';
+ 
+-export default function RootLayout() {
+-  useEffect(() => {
+-    inicializarBanco();
+-    migrarBanco();
+-    registrarSyncBackground();
+-  }, []);
+-
++function StackTematizado() {
++  const { cores, escuro } = useTema();
+   return (
+-    <Stack screenOptions={{ headerStyle: { backgroundColor: '#1b5e3f' }, headerTintColor: '#fff' }}>
++    <>
++      <StatusBar
++        barStyle="light-content" // header é primária (escura) nos dois temas
++        backgroundColor={escuro ? cores.cartao : cores.primaria}
++      />
++      <Stack
++        screenOptions={{
++          headerStyle: { backgroundColor: escuro ? cores.cartao : cores.primaria },
++          headerTintColor: escuro ? cores.texto : '#fff',
++          contentStyle: { backgroundColor: cores.fundo },
++        }}
++      >
+       <Stack.Screen name="index" options={{ title: 'Entrar', headerShown: false }} />
+       <Stack.Screen name="(app)/rotas" options={{ title: 'Rotas', headerBackVisible: false }} />
+       <Stack.Screen name="(app)/clientes" options={{ title: 'Clientes' }} />
+@@ -19,7 +27,7 @@ export default function RootLayout() {
+       <Stack.Screen name="(app)/cliente/[id]" options={{ title: 'Cliente' }} />
+       <Stack.Screen name="(app)/cobranca/[locacaoId]" options={{ title: 'Registrar Cobrança' }} />
+       <Stack.Screen name="(app)/saldo/[id]" options={{ title: 'Saldo Devedor' }} />
+-      <Stack.Screen name="(app)/config/impressora" options={{ title: 'Impressora' }} />
++      <Stack.Screen name="(app)/config/impressora" options={{ title: 'Ajustes' }} />
+       <Stack.Screen name="(app)/deposito" options={{ title: 'Em Depósito' }} />
+       <Stack.Screen name="(app)/historico/[locacaoId]" options={{ title: 'Histórico' }} />
+       <Stack.Screen name="(app)/cliente-editar/[id]" options={{ title: 'Editar Cliente' }} />
+@@ -27,6 +35,21 @@ export default function RootLayout() {
+       <Stack.Screen name="(app)/finalizar/[locacaoId]" options={{ title: 'Finalizar Locação' }} />
+       <Stack.Screen name="(app)/sync-erros" options={{ title: 'Pendências de Sincronização' }} />
+       <Stack.Screen name="(app)/locacao-editar/[locacaoId]" options={{ title: 'Editar Regras' }} />
+-    </Stack>
++      </Stack>
++    </>
++  );
++}
++
++export default function RootLayout() {
++  useEffect(() => {
++    inicializarBanco();
++    migrarBanco();
++    registrarSyncBackground();
++  }, []);
++
++  return (
++    <ProvedorTema>
++      <StackTematizado />
++    </ProvedorTema>
+   );
+ }
+diff --git a/apps/mobile/app/index.tsx b/apps/mobile/app/index.tsx
+index d4d141e..4ceb0f7 100644
+--- a/apps/mobile/app/index.tsx
++++ b/apps/mobile/app/index.tsx
+@@ -4,8 +4,11 @@ import { router } from 'expo-router';
+ import { login } from '../src/services/auth';
+ import { useApp } from '../src/store/app';
+ import { sincronizar } from '../src/services/sync';
++import { criarEstilos, useCores } from '../src/theme';
+ 
+ export default function LoginScreen() {
++  const s = useEstilos();
++  const cores = useCores();
+   const setUsuario = useApp((s) => s.setUsuario);
+   const [cpf, setCpf] = useState('');
+   const [senha, setSenha] = useState('');
+@@ -33,11 +36,11 @@ export default function LoginScreen() {
+       <Text style={s.subtitulo}>Cobranças em campo, online ou offline</Text>
+ 
+       <TextInput
+-        style={s.input} placeholder="CPF (somente números)" placeholderTextColor="#9aa"
++        style={s.input} placeholder="CPF (somente números)" placeholderTextColor={cores.textoFraco}
+         keyboardType="number-pad" maxLength={11} value={cpf} onChangeText={setCpf}
+       />
+       <TextInput
+-        style={s.input} placeholder="Senha" placeholderTextColor="#9aa"
++        style={s.input} placeholder="Senha" placeholderTextColor={cores.textoFraco}
+         secureTextEntry value={senha} onChangeText={setSenha}
+       />
+       {erro ? <Text style={s.erro}>{erro}</Text> : null}
+@@ -49,18 +52,18 @@ export default function LoginScreen() {
+   );
+ }
+ 
+-const s = StyleSheet.create({
+-  container: { flex: 1, backgroundColor: '#1b5e3f', justifyContent: 'center', padding: 24 },
+-  titulo: { fontSize: 32, fontWeight: '800', color: '#fff', textAlign: 'center' },
+-  subtitulo: { color: '#cde5d8', textAlign: 'center', marginBottom: 32 },
++const useEstilos = criarEstilos((c) => StyleSheet.create({
++  container: { flex: 1, backgroundColor: c.primaria, justifyContent: 'center', padding: 24 },
++  titulo: { fontSize: 32, fontWeight: '800', color: c.brancoFixo, textAlign: 'center' },
++  subtitulo: { color: '#cde5d8', textAlign: 'center', marginBottom: 32 }, // sobre primária: fixo nos 2 temas
+   input: {
+-    backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
++    backgroundColor: c.cartao, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
+     marginBottom: 12, fontSize: 16,
+   },
+-  erro: { color: '#ffd2d2', marginBottom: 8, textAlign: 'center' },
++  erro: { color: '#ffd2d2', marginBottom: 8, textAlign: 'center' }, // sobre primária: fixo nos 2 temas
+   botao: {
+-    backgroundColor: '#0e3a24', borderRadius: 10, paddingVertical: 14,
++    backgroundColor: c.primariaEscura, borderRadius: 10, paddingVertical: 14,
+     alignItems: 'center', marginTop: 8,
+   },
+-  botaoTexto: { color: '#fff', fontWeight: '700', fontSize: 16 },
+-});
++  botaoTexto: { color: c.brancoFixo, fontWeight: '700', fontSize: 16 },
++}));
+diff --git a/apps/mobile/src/theme.tsx b/apps/mobile/src/theme.tsx
+new file mode 100644
+index 0000000..6ce0332
+--- /dev/null
++++ b/apps/mobile/src/theme.tsx
+@@ -0,0 +1,141 @@
++// Sistema de tema do app (modo claro/escuro) — espelha os tokens do painel.
++// - Modo 'auto' segue o sistema (useColorScheme); preferência persiste na
++//   tabela meta do SQLite.
++// - criarEstilos(fabrica) devolve um hook que materializa o StyleSheet uma
++//   única vez por tema (cache de módulo) — custo zero nos re-renders.
++import { createContext, useCallback, useContext, useMemo, useState } from 'react';
++import { useColorScheme } from 'react-native';
++import { getMeta, setMeta } from './db/schema';
++
++export interface Cores {
++  fundo: string;          // fundo das telas
++  cartao: string;         // superfícies/cards
++  texto: string;
++  textoSuave: string;
++  textoFraco: string;
++  brancoFixo: string;     // texto sobre primária (branco nos dois temas)
++  primaria: string;       // feltro
++  primariaEscura: string;
++  primariaSuave: string;  // fundos de destaque verdes
++  primariaBorda: string;
++  primariaTransl: string;
++  erro: string;
++  erroSuave: string;      // fundo de avisos de erro
++  erroBorda: string;
++  aviso: string;          // texto âmbar
++  avisoSuave: string;
++  avisoBorda: string;
++  avisoForte: string;
++}
++
++// Claro: exatamente a paleta que o app sempre usou.
++export const CORES_CLARO: Cores = {
++  fundo: '#f5f2ea',
++  cartao: '#fff',
++  texto: '#222',
++  textoSuave: '#555',
++  textoFraco: '#888',
++  brancoFixo: '#fff',
++  primaria: '#1b5e3f',
++  primariaEscura: '#0e3a24',
++  primariaSuave: '#e8f3ee',
++  primariaBorda: '#cde5d8',
++  primariaTransl: '#1b5e3f44',
++  erro: '#b3261e',
++  erroSuave: '#fdecea',
++  erroBorda: '#f5c6c0',
++  aviso: '#8a6d00',
++  avisoSuave: '#fff8e6',
++  avisoBorda: '#ffe69c',
++  avisoForte: '#d4a017',
++};
++
++// Escuro: mesma identidade feltro, valores derivados dos tokens do painel.
++export const CORES_ESCURO: Cores = {
++  fundo: '#111613',
++  cartao: '#1b231e',
++  texto: '#eef3f0',
++  textoSuave: '#b6c2bb',
++  textoFraco: '#7f8d86',
++  brancoFixo: '#fff',
++  primaria: '#46b384',
++  primariaEscura: '#2f7d5c',
++  primariaSuave: '#1d2f26',
++  primariaBorda: '#2c4a3b',
++  primariaTransl: '#46b38433',
++  erro: '#ff8a7a',
++  erroSuave: '#2c1714',
++  erroBorda: '#54251f',
++  aviso: '#e6c35c',
++  avisoSuave: '#272009',
++  avisoBorda: '#4d3f12',
++  avisoForte: '#e0a93f',
++};
++
++export type ModoTema = 'auto' | 'claro' | 'escuro';
++
++interface ContextoTema {
++  modo: ModoTema;
++  setModo: (m: ModoTema) => void;
++  escuro: boolean;
++  cores: Cores;
++}
++
++const TemaContext = createContext<ContextoTema>({
++  modo: 'auto',
++  setModo: () => {},
++  escuro: false,
++  cores: CORES_CLARO,
++});
++
++export function ProvedorTema({ children }: { children: React.ReactNode }) {
++  const sistema = useColorScheme(); // 'light' | 'dark' | null
++  const [modo, setModoState] = useState<ModoTema>(() => {
++    const salvo = getMeta('tema');
++    return salvo === 'claro' || salvo === 'escuro' ? salvo : 'auto';
++  });
++
++  const setModo = useCallback((m: ModoTema) => {
++    setModoState(m);
++    setMeta('tema', m);
++  }, []);
++
++  const escuro = modo === 'escuro' || (modo === 'auto' && sistema === 'dark');
++
++  const valor = useMemo<ContextoTema>(
++    () => ({ modo, setModo, escuro, cores: escuro ? CORES_ESCURO : CORES_CLARO }),
++    [modo, setModo, escuro]
++  );
++
++  return <TemaContext.Provider value={valor}>{children}</TemaContext.Provider>;
++}
++
++/** Cores do tema ativo (para estilos inline e props de componentes). */
++export function useCores(): Cores {
++  return useContext(TemaContext).cores;
++}
++
++/** Modo + setter (tela de Ajustes) e flag escuro (headers etc.). */
++export function useTema(): ContextoTema {
++  return useContext(TemaContext);
++}
++
++/**
++ * Fábrica de estilos tematizados:
++ *   const useEstilos = criarEstilos((c) => StyleSheet.create({ ... }));
++ *   // no componente: const s = useEstilos();
++ * O StyleSheet é criado uma vez por tema e cacheado no módulo.
++ */
++export function criarEstilos<T>(fabrica: (c: Cores) => T): () => T {
++  let claro: T | undefined;
++  let escuroCache: T | undefined;
++  return function useEstilos(): T {
++    const { escuro } = useContext(TemaContext);
++    if (escuro) {
++      if (!escuroCache) escuroCache = fabrica(CORES_ESCURO);
++      return escuroCache;
++    }
++    if (!claro) claro = fabrica(CORES_CLARO);
++    return claro;
++  };
++}
+-- 
+2.43.0
+
