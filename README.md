@@ -224,6 +224,7 @@ Comparação item a item com o prompt original do projeto. Em ordem de prioridad
 - [x] **Documentação Swagger/OpenAPI** (spec §15): especificação dos endpoints principais em `/api/docs` (Swagger UI via CDN, com exceção pontual de CSP) e `/api/docs/openapi.json`.
 - [x] **Visibilidade de conflitos no mobile**: `GET /api/conflitos/meus` (só autenticação) e seção "Em revisão no escritório" na tela de Pendências — o cobrador vê quais alterações suas divergiram e aguardam decisão no painel (read-only por design: a resolução é do escritório).
 - [ ] **Build pré-compilado dos pacotes** (exports map) como alternativa ao runtime via `tsx`.
+- [x] **Mobile no CI**: `tsc --noEmit` como build do app Expo — o turbo deixa de pular o pacote e cada push valida os tipos das ~18 telas e serviços (antes, o mobile era o único pacote sem verificação).
 - [x] **Ambiente de homologação e deploy** (spec §15): Dockerfiles da API (migrations `migrate deploy` na subida) e do painel (Next standalone), `docker-compose.homolog.yml` completo (banco+redis+api+web) e `docs/DEPLOY.md` com migrations versionadas, produção sugerida e checklist pré-produção.
 
 ### Fora de escopo (mantido conforme spec §14)
