@@ -1,0 +1,68 @@
+From 3dcf335f2d78a340d628d7e2c396ef63cbd3698b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 01:20:00 +0000
+Subject: [PATCH] ci(mobile): type-check do app Expo no pipeline
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+O mobile era o único pacote que o turbo pulava (sem script build) —
+nenhum push validava os tipos das telas e serviços do app.
+
+- apps/mobile: build/type-check = tsc --noEmit (typescript ^5.7.2
+  içado da raiz, mesmo binário dos demais pacotes; tsconfig já
+  estende expo/tsconfig.base com strict)
+- apps/mobile/turbo.json: outputs [] (sem artefatos)
+- varredura prévia: 26 arquivos, imports relativos íntegros e
+  imports das edições recentes (api/estaOnline/useCallback) conferidos
+---
+ README.md                | 1 +
+ apps/mobile/package.json | 4 +++-
+ apps/mobile/turbo.json   | 8 ++++++++
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+ create mode 100644 apps/mobile/turbo.json
+
+diff --git a/README.md b/README.md
+index a372c3e..e3c6523 100644
+--- a/README.md
++++ b/README.md
+@@ -224,6 +224,7 @@ Comparação item a item com o prompt original do projeto. Em ordem de prioridad
+ - [x] **Documentação Swagger/OpenAPI** (spec §15): especificação dos endpoints principais em `/api/docs` (Swagger UI via CDN, com exceção pontual de CSP) e `/api/docs/openapi.json`.
+ - [x] **Visibilidade de conflitos no mobile**: `GET /api/conflitos/meus` (só autenticação) e seção "Em revisão no escritório" na tela de Pendências — o cobrador vê quais alterações suas divergiram e aguardam decisão no painel (read-only por design: a resolução é do escritório).
+ - [ ] **Build pré-compilado dos pacotes** (exports map) como alternativa ao runtime via `tsx`.
++- [x] **Mobile no CI**: `tsc --noEmit` como build do app Expo — o turbo deixa de pular o pacote e cada push valida os tipos das ~18 telas e serviços (antes, o mobile era o único pacote sem verificação).
+ - [x] **Ambiente de homologação e deploy** (spec §15): Dockerfiles da API (migrations `migrate deploy` na subida) e do painel (Next standalone), `docker-compose.homolog.yml` completo (banco+redis+api+web) e `docs/DEPLOY.md` com migrations versionadas, produção sugerida e checklist pré-produção.
+ 
+ ### Fora de escopo (mantido conforme spec §14)
+diff --git a/apps/mobile/package.json b/apps/mobile/package.json
+index 46c063f..22beee5 100644
+--- a/apps/mobile/package.json
++++ b/apps/mobile/package.json
+@@ -7,7 +7,9 @@
+     "android": "expo run:android",
+     "ios": "expo run:ios",
+     "build:android": "eas build --platform android",
+-    "clean": "rm -rf .expo"
++    "clean": "rm -rf .expo",
++    "build": "tsc --noEmit",
++    "type-check": "tsc --noEmit"
+   },
+   "dependencies": {
+     "@locacoes/shared": "*",
+diff --git a/apps/mobile/turbo.json b/apps/mobile/turbo.json
+new file mode 100644
+index 0000000..d7c7d48
+--- /dev/null
++++ b/apps/mobile/turbo.json
+@@ -0,0 +1,8 @@
++{
++  "extends": ["//"],
++  "tasks": {
++    "build": {
++      "outputs": []
++    }
++  }
++}
+-- 
+2.43.0
+
