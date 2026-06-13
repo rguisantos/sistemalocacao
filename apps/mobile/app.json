@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "locacoes",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "backgroundColor": "#1b5e3f"
@@ -31,6 +31,14 @@
         "expo-location",
         {
           "locationWhenInUsePermission": "Usamos sua localização para preencher o endereço do cliente."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.25"
+          }
         }
       ]
     ],
