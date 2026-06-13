@@ -1,0 +1,59 @@
+From 307f978b07cc89aa0a1259d195a9b683494a81bb Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 18:30:41 +0000
+Subject: [PATCH] fix(mobile): metro.config sem resolveRequest (erro
+ 'originalResolveRequest is not a function')
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+O build EAS rodou uma versão antiga do metro.config com resolveRequest
+customizado (linha 71 do traceback não existe no arquivo de 25 linhas)
+— sinal de patch aplicado fora de ordem no repositório. Consolida o
+config na forma MÍNIMA e robusta: watchFolders + nodeModulesPaths,
+sem tocar em resolveRequest (que era frágil e quebrou o bundler).
+
+O dedupe de React fica 100%% a cargo dos overrides do package.json
+(commit anterior). Config do Metro faz só o essencial de monorepo.
+---
+ apps/mobile/metro.config.js | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/apps/mobile/metro.config.js b/apps/mobile/metro.config.js
+index 4fbaf50..c9be541 100644
+--- a/apps/mobile/metro.config.js
++++ b/apps/mobile/metro.config.js
+@@ -1,4 +1,9 @@
+-// Metro para monorepo (padrão oficial Expo + dedupe de React).
++// Metro para monorepo (padrão oficial Expo).
++// - watchFolders: resolve @locacoes/shared a partir da raiz.
++// - nodeModulesPaths: procura no app primeiro, depois na raiz.
++// O dedupe de React é feito via "overrides" no package.json da raiz
++// (react@18.3.1 dentro de react-native e libs nativas), NÃO aqui —
++// mexer no resolveRequest é frágil e foi a fonte de um erro de build.
+ const { getDefaultConfig } = require('expo/metro-config');
+ const path = require('path');
+ 
+@@ -7,19 +12,10 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
+ 
+ const config = getDefaultConfig(projectRoot);
+ 
+-// Observa a raiz (resolve @locacoes/shared) e prioriza o node_modules do app.
+ config.watchFolders = [monorepoRoot];
+ config.resolver.nodeModulesPaths = [
+   path.resolve(projectRoot, 'node_modules'),
+   path.resolve(monorepoRoot, 'node_modules'),
+ ];
+ 
+-// Garante UMA cópia de react/react-native — a do app (18.3.1). A raiz tem
+-// react@19 (do Next/web) içado; sem isto o Metro empacota o 19 e o app
+-// crasha com "ReactCurrentDispatcher of undefined".
+-config.resolver.extraNodeModules = {
+-  react: path.resolve(projectRoot, 'node_modules/react'),
+-  'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
+-};
+-
+ module.exports = config;
+-- 
+2.43.0
+
