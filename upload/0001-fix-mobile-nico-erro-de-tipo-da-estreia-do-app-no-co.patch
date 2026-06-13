@@ -1,0 +1,34 @@
+From d3712101cc6ab636d02396b0134499787fc23ccd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 01:27:39 +0000
+Subject: [PATCH] =?UTF-8?q?fix(mobile):=20=C3=BAnico=20erro=20de=20tipo=20?=
+ =?UTF-8?q?da=20estreia=20do=20app=20no=20compilador?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+impressora.ts: o sentinela 'undefined = ainda não tentou' vive num let
+de escopo de módulo, e o TS não estreita esse tipo após o try/catch
+(closures podem mutá-lo) — o return final ainda carregava | undefined.
+Resolvido com ?? null, preservando o cache de carregamento da lib.
+---
+ apps/mobile/src/services/impressora.ts | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/apps/mobile/src/services/impressora.ts b/apps/mobile/src/services/impressora.ts
+index b40fcbe..1afa831 100644
+--- a/apps/mobile/src/services/impressora.ts
++++ b/apps/mobile/src/services/impressora.ts
+@@ -31,7 +31,8 @@ function carregarModulo(): ModuloBluetooth | null {
+   } catch {
+     modulo = null; // lib não instalada (Expo Go / build sem o módulo)
+   }
+-  return modulo;
++  // ?? null: o TS não estreita `let` de escopo de módulo após o try/catch
++  return modulo ?? null;
+ }
+ 
+ let enderecoImpressora: string | null = null;
+-- 
+2.43.0
+
