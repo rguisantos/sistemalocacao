@@ -165,3 +165,26 @@ Stage Summary:
 - EAS build in progress (native module = needs rebuild, not OTA)
 - After this build, if successful, app should boot to login screen
 - Future JS-only fixes go via `eas update --branch preview`
+
+---
+Task ID: 12
+Agent: main
+Task: Fix mobile crash — dedupe React no Metro (ReactCurrentDispatcher undefined)
+
+Work Log:
+- User ran adb logcat again: "Cannot read property 'ReactCurrentDispatcher' of undefined"
+- Recognized immediately: signature of TWO React copies in the bundle tree
+- Root cause: monorepo root has react@19.2.7 (hoisted, needed for Next/web prerender), mobile needs react@18.3.1 (required by react-native 0.76.5). EAS build's Metro (no monorepo config) was bundling the hoisted React 19 from root
+- Created apps/mobile/metro.config.js (file didn't exist at all):
+  - watchFolders: [monorepoRoot] to resolve @locacoes/shared
+  - nodeModulesPaths: app's node_modules first, then root's
+  - extraNodeModules: force react + react-native to the LOCAL copy (18.3.1)
+- Did NOT touch react@19 at root — web still uses its own copy
+- Updated README.md with checklist entry
+- Committed and pushed (8aed21c)
+- Started EAS build: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/f34c5268-3e80-44e3-a4b5-7527b240acfa
+
+Stage Summary:
+- metro.config.js created for monorepo + React dedupe
+- No native modules changed — native layer should reuse cache, only the JS bundle changes
+- Build in progress

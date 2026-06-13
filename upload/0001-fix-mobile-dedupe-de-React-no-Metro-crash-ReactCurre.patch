@@ -1,0 +1,75 @@
+From fa7b00d56a936d2b99c1ac5f00433e3072dea74a Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 14:20:29 +0000
+Subject: [PATCH] fix(mobile): dedupe de React no Metro (crash
+ ReactCurrentDispatcher)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+logcat: 'Cannot read property ReactCurrentDispatcher of undefined' —
+assinatura de DUAS cópias do React na árvore. O monorepo tem react@19
+na raiz (necessário para o prerender do Next/web) içado pelo npm; o
+mobile usa react@18.3.1 (exigido pelo react-native 0.76.5). No build
+EAS, o Metro (sem config de monorepo) empacotava o 19 da raiz.
+
+- metro.config.js (faltava por completo): watchFolders na raiz para
+  resolver @locacoes/shared, nodeModulesPaths priorizando o app, e
+  extraNodeModules fixando react/react-native na cópia LOCAL do app
+- não mexe no react@19 da raiz: o web continua usando o seu; o redirect
+  é só do bundle mobile
+
+Módulo nativo não muda — mas como o bundle de React muda, exige build
+(o Metro roda no build, não há como validar por OTA aqui).
+---
+ README.md                   |  1 +
+ apps/mobile/metro.config.js | 25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+)
+ create mode 100644 apps/mobile/metro.config.js
+
+diff --git a/README.md b/README.md
+index 1b4bea8..b02eaa7 100644
+--- a/README.md
++++ b/README.md
+@@ -224,6 +224,7 @@ Comparação item a item com o prompt original do projeto. Em ordem de prioridad
+ - [x] **Documentação Swagger/OpenAPI** (spec §15): especificação dos endpoints principais em `/api/docs` (Swagger UI via CDN, com exceção pontual de CSP) e `/api/docs/openapi.json`.
+ - [x] **Visibilidade de conflitos no mobile**: `GET /api/conflitos/meus` (só autenticação) e seção "Em revisão no escritório" na tela de Pendências — o cobrador vê quais alterações suas divergiram e aguardam decisão no painel (read-only por design: a resolução é do escritório).
+ - [ ] **Build pré-compilado dos pacotes** (exports map) como alternativa ao runtime via `tsx`.
++- [x] **Metro monorepo + dedupe de React** (mobile): `apps/mobile/metro.config.js` observa a raiz para resolver `@locacoes/shared` e força `react`/`react-native` à cópia local (18.3.1) — a raiz tem react@19 do Next içado, que sem isso vaza para o app e o derruba no boot.
+ - [x] **Modo escuro no mobile** (spec §9): sistema de tema em `src/theme.tsx` — paletas claro (idêntica à original) e escuro (derivada dos tokens do painel), modo Automático/Claro/Escuro persistido na tabela `meta`, headers e fundo do Stack tematizados, seletor na tela de Ajustes. As 15 telas usam `criarEstilos((c) => StyleSheet.create(...))` com cache por tema (StyleSheet materializado uma vez por modo).
+ - [x] **Mobile no CI**: `tsc --noEmit` como build do app Expo — o turbo deixa de pular o pacote e cada push valida os tipos das ~18 telas e serviços (antes, o mobile era o único pacote sem verificação).
+ - [x] **Ambiente de homologação e deploy** (spec §15): Dockerfiles da API (migrations `migrate deploy` na subida) e do painel (Next standalone), `docker-compose.homolog.yml` completo (banco+redis+api+web) e `docs/DEPLOY.md` com migrations versionadas, produção sugerida e checklist pré-produção.
+diff --git a/apps/mobile/metro.config.js b/apps/mobile/metro.config.js
+new file mode 100644
+index 0000000..4fbaf50
+--- /dev/null
++++ b/apps/mobile/metro.config.js
+@@ -0,0 +1,25 @@
++// Metro para monorepo (padrão oficial Expo + dedupe de React).
++const { getDefaultConfig } = require('expo/metro-config');
++const path = require('path');
++
++const projectRoot = __dirname;
++const monorepoRoot = path.resolve(projectRoot, '../..');
++
++const config = getDefaultConfig(projectRoot);
++
++// Observa a raiz (resolve @locacoes/shared) e prioriza o node_modules do app.
++config.watchFolders = [monorepoRoot];
++config.resolver.nodeModulesPaths = [
++  path.resolve(projectRoot, 'node_modules'),
++  path.resolve(monorepoRoot, 'node_modules'),
++];
++
++// Garante UMA cópia de react/react-native — a do app (18.3.1). A raiz tem
++// react@19 (do Next/web) içado; sem isto o Metro empacota o 19 e o app
++// crasha com "ReactCurrentDispatcher of undefined".
++config.resolver.extraNodeModules = {
++  react: path.resolve(projectRoot, 'node_modules/react'),
++  'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
++};
++
++module.exports = config;
+-- 
+2.43.0
+
