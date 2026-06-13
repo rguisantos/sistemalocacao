@@ -5,6 +5,11 @@ import { inicializarBanco, migrarBanco } from '../src/db/schema';
 import { registrarSyncBackground } from '../src/services/backgroundSync';
 import { ProvedorTema, useTema } from '../src/theme';
 
+// Banco pronto ANTES de qualquer componente renderizar — o ProvedorTema lê a
+// preferência de tema (getMeta) já na primeira renderização, antes do useEffect.
+inicializarBanco();
+migrarBanco();
+
 function StackTematizado() {
   const { cores, escuro } = useTema();
   return (
@@ -42,9 +47,12 @@ function StackTematizado() {
 
 export default function RootLayout() {
   useEffect(() => {
-    inicializarBanco();
-    migrarBanco();
-    registrarSyncBackground();
+    // Sync em background pode falhar (sem permissão/rede) sem derrubar o app.
+    try {
+      registrarSyncBackground();
+    } catch (e) {
+      console.warn('Falha ao registrar sync em background:', e);
+    }
   }, []);
 
   return (

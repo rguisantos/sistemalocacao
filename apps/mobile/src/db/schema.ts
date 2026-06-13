@@ -189,8 +189,13 @@ export function migrarBanco() {
 }
 
 export function getMeta(chave: string): string | null {
-  const row = db.getFirstSync<{ valor: string }>('SELECT valor FROM meta WHERE chave = ?', [chave]);
-  return row?.valor ?? null;
+  try {
+    const row = db.getFirstSync<{ valor: string }>('SELECT valor FROM meta WHERE chave = ?', [chave]);
+    return row?.valor ?? null;
+  } catch {
+    // tabela ainda não criada (leitura antes do inicializarBanco) — sem valor
+    return null;
+  }
 }
 
 export function setMeta(chave: string, valor: string) {
