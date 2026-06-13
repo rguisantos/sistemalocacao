@@ -1,0 +1,145 @@
+From 695dd70f1360f8d2d51b8707595ee4ac7e62ef4b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 01:04:15 +0000
+Subject: [PATCH] =?UTF-8?q?fix(auth):=20revoga=C3=A7=C3=A3o=20dura=20sem?=
+ =?UTF-8?q?=20janela=20de=20toler=C3=A2ncia=20(+=20expectativa=20do=20sald?=
+ =?UTF-8?q?o)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Bug real pego pelo teste: um único campo revokedAt representava DOIS
+estados — rotação (reuso em 60s = corrida benigna de multi-tab) e
+revogação dura (logout, troca de senha, desativação). A troca de senha
+marcava revokedAt e o refresh seguinte caía na janela de 60s como se
+fosse multi-tab, emitindo tokens novos. O logout tinha o mesmo furo.
+
+- schema: RefreshToken.rotatedAt (com janela) separado de revokedAt
+  (revogação dura, 401 imediato, sem exceções)
+- refresh: revokedAt → 401 direto; rotatedAt dentro de 60s → corrida
+  benigna; rotatedAt antigo → reuso suspeito (revoga tudo + auditoria)
+- teste de reuso ajustado para envelhecer a ROTAÇÃO
+- cobranca.test: expectativa do saldo corrigida (devido 200, pago 100
+  → resta 100; quitação 50+50) — serviço estava correto
+---
+ apps/api/src/services/auth.service.ts  | 19 +++++++++++++------
+ apps/api/tests/auth.test.ts            |  6 +++---
+ apps/api/tests/cobranca.test.ts        |  6 +++---
+ packages/database/prisma/schema.prisma |  3 ++-
+ 4 files changed, 21 insertions(+), 13 deletions(-)
+
+diff --git a/apps/api/src/services/auth.service.ts b/apps/api/src/services/auth.service.ts
+index 5098d1c..4d9db45 100644
+--- a/apps/api/src/services/auth.service.ts
++++ b/apps/api/src/services/auth.service.ts
+@@ -95,14 +95,20 @@ export async function refresh(refreshToken: string): Promise<AuthResponse> {
+     throw new HttpError(401, 'Refresh token inválido ou expirado');
+   }
+ 
+-  // SEGURANÇA: reuso de token já rotacionado = forte indício de token
++  // Revogação DURA (logout, troca de senha, desativação, reuso suspeito):
++  // NUNCA tem janela de tolerância — 401 imediato.
++  if (stored.revokedAt) {
++    throw new HttpError(401, 'Sessão inválida. Faça login novamente.');
++  }
++
++  // SEGURANÇA: reuso de token já ROTACIONADO = forte indício de token
+   // vazado/roubado. Revoga TODAS as sessões do usuário e audita.
+   // EXCEÇÃO: janela de tolerância de 60s cobre corridas legítimas
+   // (múltiplas abas do painel, retry de rede após timeout).
+   const GRACE_MS = 60_000;
+-  if (stored.revokedAt && Date.now() - stored.revokedAt.getTime() < GRACE_MS) {
++  if (stored.rotatedAt && Date.now() - stored.rotatedAt.getTime() < GRACE_MS) {
+     // corrida benigna: segue o fluxo normal e emite novos tokens
+-  } else if (stored.revokedAt) {
++  } else if (stored.rotatedAt) {
+     await revogarTodosTokens(stored.usuarioId);
+     await registrarAuditoria({
+       usuarioId: stored.usuarioId,
+@@ -117,10 +123,10 @@ export async function refresh(refreshToken: string): Promise<AuthResponse> {
+     throw new HttpError(401, 'Usuário inativo');
+   }
+ 
+-  // Rotação: revoga o token usado e emite novo
++  // Rotação: marca o token usado como rotacionado e emite novo
+   await prisma.refreshToken.update({
+     where: { id: stored.id },
+-    data: { revokedAt: new Date() },
++    data: { rotatedAt: new Date() },
+   });
+ 
+   const dto = montarUsuarioDTO(stored.usuario);
+@@ -136,7 +142,8 @@ export async function logout(refreshToken: string): Promise<void> {
+   });
+ }
+ 
+-/** Revoga TODOS os tokens de um usuário (ex.: troca de senha, desativação) */
++/** Revogação DURA de todos os tokens (troca de senha, desativação, reuso
++ *  suspeito). Inclui tokens já rotacionados: nada do usuário sobrevive. */
+ export async function revogarTodosTokens(usuarioId: string): Promise<void> {
+   await prisma.refreshToken.updateMany({
+     where: { usuarioId, revokedAt: null },
+diff --git a/apps/api/tests/auth.test.ts b/apps/api/tests/auth.test.ts
+index 04ee030..c032e04 100644
+--- a/apps/api/tests/auth.test.ts
++++ b/apps/api/tests/auth.test.ts
+@@ -61,10 +61,10 @@ describe('POST /api/auth/refresh — rotação e reuso', () => {
+ 
+   it('reuso FORA da janela revoga todas as sessões e audita', async () => {
+     await request(app).post('/api/auth/refresh').send({ refreshToken: ctx.refreshToken });
+-    // envelhece a revogação para fora do grace de 60s
++    // envelhece a rotação para fora do grace de 60s
+     await prisma.refreshToken.updateMany({
+-      where: { usuarioId: ctx.usuarioId, revokedAt: { not: null } },
+-      data: { revokedAt: new Date(Date.now() - 120_000) },
++      where: { usuarioId: ctx.usuarioId, rotatedAt: { not: null } },
++      data: { rotatedAt: new Date(Date.now() - 120_000) },
+     });
+ 
+     const reuso = await request(app).post('/api/auth/refresh').send({ refreshToken: ctx.refreshToken });
+diff --git a/apps/api/tests/cobranca.test.ts b/apps/api/tests/cobranca.test.ts
+index 175e622..e5e92c2 100644
+--- a/apps/api/tests/cobranca.test.ts
++++ b/apps/api/tests/cobranca.test.ts
+@@ -100,7 +100,7 @@ describe('finalização com saldo devedor', () => {
+   it('cria SaldoDevedorLocacao e o pagamento quita', async () => {
+     const locacaoId = await criarLocacaoPercentual();
+     await request(app).post(`/api/locacoes/${locacaoId}/cobrancas`).set(auth(ctx.token))
+-      .send({ contadorAtual: 1200, valorRecebidoPago: '100.00', formaPagamento: 'DINHEIRO' }); // deve 80
++      .send({ contadorAtual: 1200, valorRecebidoPago: '100.00', formaPagamento: 'DINHEIRO' }); // devido 200 → resta 100
+ 
+     const deposito = await prisma.deposito.create({ data: { nome: 'Dep', version: BigInt(Date.now()) } });
+     const fin = await request(app)
+@@ -110,13 +110,13 @@ describe('finalização com saldo devedor', () => {
+     expect(fin.status).toBe(200);
+ 
+     const saldo = await prisma.saldoDevedorLocacao.findUnique({ where: { locacaoId } });
+-    expect(saldo!.valorRestante.toFixed(2)).toBe('80.00');
++    expect(saldo!.valorRestante.toFixed(2)).toBe('100.00');
+ 
+     // paga parcial e depois quita
+     await request(app).post(`/api/locacoes/saldos/${saldo!.id}/pagamentos`).set(auth(ctx.token))
+       .send({ valor: '50.00', formaPagamento: 'DINHEIRO' });
+     const r2 = await request(app).post(`/api/locacoes/saldos/${saldo!.id}/pagamentos`).set(auth(ctx.token))
+-      .send({ valor: '30.00', formaPagamento: 'PIX_MANUAL' });
++      .send({ valor: '50.00', formaPagamento: 'PIX_MANUAL' });
+     expect(r2.status).toBe(201);
+ 
+     const quitado = await prisma.saldoDevedorLocacao.findUnique({ where: { locacaoId } });
+diff --git a/packages/database/prisma/schema.prisma b/packages/database/prisma/schema.prisma
+index 7879b62..6931188 100644
+--- a/packages/database/prisma/schema.prisma
++++ b/packages/database/prisma/schema.prisma
+@@ -94,7 +94,8 @@ model RefreshToken {
+   token      String   @unique
+   usuarioId  String   @map("usuario_id")
+   expiresAt  DateTime @map("expires_at")
+-  revokedAt  DateTime? @map("revoked_at")
++  rotatedAt  DateTime? @map("rotated_at")   // usado e substituído (reuso em 60s = corrida benigna)
++  revokedAt  DateTime? @map("revoked_at")   // revogação DURA: logout, troca de senha, reuso suspeito — sem janela
+   createdAt  DateTime @default(now()) @map("created_at")
+ 
+   usuario    Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+-- 
+2.43.0
+
