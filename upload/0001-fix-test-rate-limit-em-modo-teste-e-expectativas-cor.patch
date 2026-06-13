@@ -1,0 +1,77 @@
+From 52e8dc889af242e2707f4bf6fd067aaa5651985b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 00:56:32 +0000
+Subject: [PATCH] =?UTF-8?q?fix(test):=20rate=20limit=20em=20modo=20teste?=
+ =?UTF-8?q?=20e=20expectativas=20corrigidas=20na=20cobran=C3=A7a?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+11 das 13 falhas: os testes rodam em singleFork (banco compartilhado),
+então o rate limiter em memória acumulava os logins de TODOS os
+cenários no mesmo processo e passava a responder 429. O limite não é
+objeto de nenhum teste (nada espera 429) — em NODE_ENV=test o
+middleware vira no-op.
+
+2 falhas restantes eram das EXPECTATIVAS, não do serviço: o registrar
+do cenário não envia descontos, logo o devido é (1200-1000)×2,00×50%
+= 200 e o saldo após pagar 150 é 50,00 — exatamente o que o serviço
+respondeu. O '180 devidos' tinha sido copiado da prévia, que inclui
+descontoPartidas 20 e descontoValorReceber 30. O encadeamento da
+segunda cobrança ajusta junto: 100 + saldo 50 = 150,00. A engine
+compartilhada segue intacta (os testes dela passam).
+---
+ apps/api/src/middleware/rateLimit.ts | 3 +++
+ apps/api/tests/cobranca.test.ts      | 8 ++++----
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/apps/api/src/middleware/rateLimit.ts b/apps/api/src/middleware/rateLimit.ts
+index 2a341c1..440d940 100644
+--- a/apps/api/src/middleware/rateLimit.ts
++++ b/apps/api/src/middleware/rateLimit.ts
+@@ -28,6 +28,9 @@ const apiLimiter = criarLimiter(300, 60, 'rl:api');
+ 
+ function aplicar(limiter: RateLimiterAbstract, chave: (req: Request) => string) {
+   return async (req: Request, res: Response, next: NextFunction) => {
++    // Testes de integração fazem dezenas de logins legítimos no mesmo IP;
++    // o limite não é o objeto sob teste (nenhum teste espera 429).
++    if (env.NODE_ENV === 'test') return next();
+     try {
+       await limiter.consume(chave(req));
+       next();
+diff --git a/apps/api/tests/cobranca.test.ts b/apps/api/tests/cobranca.test.ts
+index 2dd55b5..175e622 100644
+--- a/apps/api/tests/cobranca.test.ts
++++ b/apps/api/tests/cobranca.test.ts
+@@ -49,7 +49,7 @@ describe('fluxo de cobrança percentual', () => {
+       .set(auth(ctx.token))
+       .send({
+         contadorAtual: 1200,
+-        valorRecebidoPago: '150.00', // paga 30 a menos que os 180 devidos
++        valorRecebidoPago: '150.00', // paga 50 a menos que os 200 devidos (sem descontos aqui)
+         formaPagamento: 'DINHEIRO',
+       });
+ 
+@@ -57,7 +57,7 @@ describe('fluxo de cobrança percentual', () => {
+     expect(resp.body.cobranca.statusPagamento).toBe('PARCIAL');
+ 
+     const locacao = await prisma.locacao.findUnique({ where: { id: locacaoId } });
+-    expect(locacao!.saldoAtual.toFixed(2)).toBe('30.00'); // 180 - 150
++    expect(locacao!.saldoAtual.toFixed(2)).toBe('50.00'); // 200 - 150
+ 
+     const produto = await prisma.produto.findUnique({ where: { id: ctx.produtoId } });
+     expect(produto!.contador).toBe(1200);
+@@ -72,8 +72,8 @@ describe('fluxo de cobrança percentual', () => {
+       .post(`/api/locacoes/${locacaoId}/calcular`)
+       .set(auth(ctx.token))
+       .send({ contadorAtual: 1300 });
+-    // 100 partidas * 2 = 200 → 50% = 100 → + saldo 30 = 130
+-    expect(previa.body.valorLiquidoFinal).toBe('130.00');
++    // 100 partidas * 2 = 200 → 50% = 100 → + saldo 50 = 150
++    expect(previa.body.valorLiquidoFinal).toBe('150.00');
+   });
+ 
+   it('rejeita contador regredindo com 400', async () => {
+-- 
+2.43.0
+
