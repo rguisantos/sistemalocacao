@@ -1,0 +1,85 @@
+From 235513a94cf1ceb543a5d63f058c2e3c08f5c8ee Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Rom=C3=A1rio?= <rguisantos@users.noreply.github.com>
+Date: Sat, 13 Jun 2026 04:31:00 +0000
+Subject: [PATCH] =?UTF-8?q?fix(mobile):=20tela=20branca=20no=20boot=20?=
+ =?UTF-8?q?=E2=80=94=20ordem=20de=20inicializa=C3=A7=C3=A3o=20do=20banco?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+APK abria em branco: o ProvedorTema (que envolve toda a árvore) lê a
+preferência de tema via getMeta('tema') no inicializador do useState,
+que roda DURANTE a primeira renderização — antes do useEffect do
+RootLayout que chamava inicializarBanco(). Resultado: SELECT numa
+tabela 'meta' inexistente → exceção no boot → tela branca (sem dev
+menu para mostrar o erro no APK release).
+
+- _layout: inicializarBanco()/migrarBanco() movidos para o corpo do
+  módulo, executados antes de qualquer componente renderizar
+- getMeta: try/catch defensivo retornando null se a tabela ainda não
+  existir (cinto e suspensório)
+- registrarSyncBackground envolto em try/catch no efeito
+
+Verificado: demais chamadas de banco (sync.ts) só rodam dentro de
+funções acionadas pelo usuário, com o banco já pronto; API_URL tem
+fallback. Era o único crash de boot.
+---
+ apps/mobile/app/_layout.tsx  | 14 +++++++++++---
+ apps/mobile/src/db/schema.ts |  9 +++++++--
+ 2 files changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/apps/mobile/app/_layout.tsx b/apps/mobile/app/_layout.tsx
+index ec92e82..6e64a5e 100644
+--- a/apps/mobile/app/_layout.tsx
++++ b/apps/mobile/app/_layout.tsx
+@@ -5,6 +5,11 @@ import { inicializarBanco, migrarBanco } from '../src/db/schema';
+ import { registrarSyncBackground } from '../src/services/backgroundSync';
+ import { ProvedorTema, useTema } from '../src/theme';
+ 
++// Banco pronto ANTES de qualquer componente renderizar — o ProvedorTema lê a
++// preferência de tema (getMeta) já na primeira renderização, antes do useEffect.
++inicializarBanco();
++migrarBanco();
++
+ function StackTematizado() {
+   const { cores, escuro } = useTema();
+   return (
+@@ -42,9 +47,12 @@ function StackTematizado() {
+ 
+ export default function RootLayout() {
+   useEffect(() => {
+-    inicializarBanco();
+-    migrarBanco();
+-    registrarSyncBackground();
++    // Sync em background pode falhar (sem permissão/rede) sem derrubar o app.
++    try {
++      registrarSyncBackground();
++    } catch (e) {
++      console.warn('Falha ao registrar sync em background:', e);
++    }
+   }, []);
+ 
+   return (
+diff --git a/apps/mobile/src/db/schema.ts b/apps/mobile/src/db/schema.ts
+index 6e6c083..e5829bb 100644
+--- a/apps/mobile/src/db/schema.ts
++++ b/apps/mobile/src/db/schema.ts
+@@ -189,8 +189,13 @@ export function migrarBanco() {
+ }
+ 
+ export function getMeta(chave: string): string | null {
+-  const row = db.getFirstSync<{ valor: string }>('SELECT valor FROM meta WHERE chave = ?', [chave]);
+-  return row?.valor ?? null;
++  try {
++    const row = db.getFirstSync<{ valor: string }>('SELECT valor FROM meta WHERE chave = ?', [chave]);
++    return row?.valor ?? null;
++  } catch {
++    // tabela ainda não criada (leitura antes do inicializarBanco) — sem valor
++    return null;
++  }
+ }
+ 
+ export function setMeta(chave: string, valor: string) {
+-- 
+2.43.0
+

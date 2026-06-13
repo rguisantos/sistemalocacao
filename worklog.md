@@ -48,3 +48,23 @@ Stage Summary:
 - Kotlin version pinned to 1.9.25 via expo-build-properties
 - Dark mode now follows system preference (userInterfaceStyle: "automatic")
 - EAS rebuild in progress
+
+---
+Task ID: 6
+Agent: main
+Task: Fix white screen on boot — database initialization order
+
+Work Log:
+- Diagnosed: ProvedorTema calls getMeta('tema') in useState initializer (runs during first render), but inicializarBanco() was in useEffect (runs after render) → SELECT on non-existent 'meta' table → crash → white screen
+- Applied two-layer fix:
+  1. Moved inicializarBanco()/migrarBanco() to module body in _layout.tsx (runs before any component renders)
+  2. Added try/catch to getMeta() returning null defensively
+- Wrapped registrarSyncBackground in try/catch in the useEffect
+- Verified no other boot-time DB reads exist (sync.ts only runs on user action, API_URL has fallback)
+- Committed, pushed, and started EAS rebuild
+
+Stage Summary:
+- White screen root cause: DB init order — getMeta before table creation
+- Fix: synchronous DB init at module level + defensive getMeta
+- EAS build: https://expo.dev/accounts/rguisantoss/projects/locacoes-mobile/builds/ee05595e-6426-4fd3-9dcf-58e15fd5deb1
+- Only JS changed — native prebuild cached, build should be faster
