@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SentryModule } from '@sentry/nestjs/setup';
+import { SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { AuditoriaModule } from './comum/auditoria/auditoria.module';
@@ -25,6 +27,7 @@ import { PermissoesGuard } from './comum/guards/permissoes.guard';
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ScheduleModule.forRoot(),
     PrismaModule, RedisModule, AuditoriaModule,
     AuthModule, UsuariosModule, RotasModule, DepositosModule, AuxiliaresModule,
@@ -33,6 +36,8 @@ import { PermissoesGuard } from './comum/guards/permissoes.guard';
     IntegracaoModule, RelatoriosModule, NotificacoesModule,
   ],
   providers: [
+    // Sentry: captura exceções não-tratadas (5xx) — antes dos guards.
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
     // Ordem importa: rate limit -> autenticação -> autorização.
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
