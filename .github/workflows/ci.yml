@@ -1,0 +1,94 @@
+name: CI
+on:
+  push: { branches: [main] }
+  pull_request: {}
+
+# Cancela runs antigos do mesmo branch/PR (economiza minutos de CI)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificacao-rapida:
+    name: Lint, build e verificações (sem infra)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm install -g npm@11
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Prisma generate (tipos para o build da API)
+        run: npm -w @app/api run prisma:generate
+      - name: Build do núcleo
+        run: npm -w @app/core run build
+      - name: Build da API (nest build)
+        run: npm -w @app/api run build
+      - name: Build do web (next build — pega erros de tipo e prerender)
+        run: npm -w @app/web run build
+      - name: Type-check do mobile
+        run: npx tsc --noEmit -p packages/mobile/tsconfig.json
+      - name: Lint (core, api, web, mobile)
+        run: |
+          npm -w @app/core run lint
+          npm -w @app/api run lint
+          npm -w @app/web run lint
+          npm -w @app/mobile run lint
+      - name: Testes do núcleo (cálculo, calendário, sync, saldo)
+        run: npm -w @app/core test
+      - name: Harness de integração (API)
+        run: node packages/api/test/integracao-harness.js
+      - name: Harness do cliente de sync (mobile)
+        run: node packages/mobile/src/sync/sync-harness.js
+      - name: Harness de finalização/re-locação offline
+        run: node packages/api/test/finalizacao-harness.js
+      - name: Harness de auditoria (sanitização do log)
+        run: node packages/api/test/auditoria-harness.js
+
+  e2e:
+    name: Testes e2e da API (Postgres + Redis)
+    needs: verificacao-rapida
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_USER: teste, POSTGRES_PASSWORD: teste, POSTGRES_DB: locacoes_teste }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+    env:
+      DATABASE_URL: postgresql://teste:teste@localhost:5432/locacoes_teste?schema=public
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: segredo-de-ci-com-pelo-menos-32-caracteres!!
+      CONFIG_SECRET: segredo-de-config-ci-com-32-ou-mais-caracteres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm install -g npm@11
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - run: npm -w @app/core run build
+      - name: Prisma generate + migrate deploy
+        run: |
+          npm -w @app/api run prisma:generate
+          npx prisma migrate deploy --schema packages/database/prisma/schema.prisma
+      - name: e2e
+        run: npm -w @app/api run test:e2e
+
+  build-mobile:
+    name: Build mobile (EAS, apenas em main)
+    needs: verificacao-rapida
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: npm install -g npm@11
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: EAS build (Android)
+        run: |
+          echo "Configure EXPO_TOKEN e rode: npx eas build --platform android --non-interactive"

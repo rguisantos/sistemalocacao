@@ -1,0 +1,24 @@
+# Stack de produção mínima. Defina os segredos via .env (não versionar).
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${PGUSER:-locacoes}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?defina PGPASSWORD}
+      POSTGRES_DB: ${PGDATABASE:-locacoes}
+    volumes: ['pgdata:/var/lib/postgresql/data']
+    healthcheck: { test: ['CMD', 'pg_isready'], interval: 10s, retries: 5 }
+  redis:
+    image: redis:7
+    volumes: ['redisdata:/data']
+  api:
+    build: { context: ., dockerfile: packages/api/Dockerfile }
+    depends_on: { postgres: { condition: service_healthy }, redis: {} }
+    environment:
+      DATABASE_URL: postgresql://${PGUSER:-locacoes}:${PGPASSWORD}@postgres:5432/${PGDATABASE:-locacoes}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET >=32}
+      CONFIG_SECRET: ${CONFIG_SECRET:?defina CONFIG_SECRET >=32}
+      PORT: 3000
+    ports: ['3000:3000']
+volumes: { pgdata: {}, redisdata: {} }

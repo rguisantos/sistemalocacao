@@ -1,0 +1,17 @@
+BUILD: final + migrations + CI hardening (lint mobile corrigido)
+DATA: 2026-06-17 16:01 UTC
+
+Base: lockfile (npm ci) + migrations 0_init (validada: migrate diff = diff vazio) + e2e 20/20.
+Mudanças desta revisão (.github/workflows/ci.yml + scripts):
+  - verificacao-rapida agora roda: prisma generate, build core/api/web (inclui next build),
+    tsc --noEmit do mobile, ESLint nos 4 workspaces, testes do core e os 4 harnesses.
+    (Antes só buildava o core — next build/dual React não estavam protegidos no CI.)
+  - scripts 'lint' adicionados em packages/api e packages/mobile (eslint src).
+  - concurrency (cancela runs antigos), needs: verificacao-rapida em e2e e build-mobile.
+  - corrigido YAML inválido (block scalar no echo do build-mobile); Postgres 15 -> 16.
+  - e2e: migrate deploy (migration exercitada a cada push).
+
+YAML validado (yaml.safe_load) e todos os scripts referenciados existem.
+
+Ajuste extra: packages/mobile/.eslintignore (*-harness.js) + glob da raiz **/*.harness.js -> **/*-harness.js
+(o lint do mobile escaneava o sync-harness.js CommonJS e dava no-var-requires).

@@ -1,0 +1,459 @@
+// =============================================================================
+// Sistema de Locações e Cobranças — Schema do banco (PostgreSQL)
+// Todas as decisões da auditoria estão codificadas aqui. Procure por [AUDIT].
+// =============================================================================
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// ENUMS  [AUDIT P2] — modalidades/estados como enums, não strings livres
+// ----------------------------------------------------------------------------
+enum TipoCliente {
+  PF
+  PJ
+}
+enum RegraCobranca {
+  VALOR_FIXO
+  PERCENTUAL_A_RECEBER
+  PERCENTUAL_A_PAGAR
+}
+enum Frequencia {
+  SEMANAL
+  QUINZENAL
+  MENSAL
+}
+enum StatusLocacao {
+  ATIVA
+  FINALIZADA
+}
+enum TipoFinalizacao {
+  DEPOSITO
+  RELOCACAO
+}
+enum FormaPagamento {
+  DINHEIRO
+  PIX_MANUAL
+  CARTAO
+  PIX_MERCADO_PAGO
+}
+enum StatusPagamento {
+  PENDENTE
+  PAGO
+  PARCIAL
+}
+enum StatusSaldo {
+  PENDENTE
+  QUITADO
+}
+enum TipoManutencao {
+  TROCA_PANO
+  CONSERTO
+  LIMPEZA
+  OUTROS
+}
+// Origem do pagamento (append-only): cobrança da locação ativa ou saldo de locação finalizada
+enum AlvoPagamento {
+  COBRANCA
+  SALDO_DEVEDOR_LOCACAO
+}
+
+// ----------------------------------------------------------------------------
+// CADASTROS AUXILIARES
+// ----------------------------------------------------------------------------
+model TipoProduto {
+  id        String    @id @default(uuid()) @db.Uuid
+  nome      String
+  produtos  Produto[]
+  version          Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?                       // [AUDIT P0] soft-delete + tombstone no sync
+  @@index([updatedAt])
+}
+
+model Tamanho {
+  id        String    @id @default(uuid()) @db.Uuid
+  descricao String
+  produtos  Produto[]
+  version          Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  @@index([updatedAt])
+}
+
+model Condicao {
+  id        String    @id @default(uuid()) @db.Uuid
+  descricao String
+  produtos  Produto[]
+  version          Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  @@index([updatedAt])
+}
+
+model Deposito {
+  id        String     @id @default(uuid()) @db.Uuid
+  nome      String
+  endereco  String?
+  locacoes  Locacao[]
+  version          Int       @default(0)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+  @@index([updatedAt])
+}
+
+model Rota {
+  id        String         @id @default(uuid()) @db.Uuid
+  nome      String
+  clientes  Cliente[]
+  usuarios  UsuarioRota[]
+  version          Int       @default(0)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// USUÁRIOS E PERMISSÕES
+// [AUDIT P0] senha/refresh nunca entram no allowlist de sync (ver core/sync/contrato.ts)
+// ----------------------------------------------------------------------------
+model Usuario {
+  id            String              @id @default(uuid()) @db.Uuid
+  nome          String
+  cpf           String              @unique
+  senha         String              // hash argon2id — NUNCA sincronizado nem auditado
+  ativo         Boolean             @default(true)
+  pushToken     String?
+  // [AUDIT P0] revogação de JWT: invalida todos os tokens emitidos antes desta versão
+  tokenVersao   Int                 @default(0)
+  rotas         UsuarioRota[]
+  permissoes    UsuarioPermissao[]
+  cobrancas     Cobranca[]
+  pagamentos    Pagamento[]
+  manutencoes   Manutencao[]
+  version          Int       @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  deletedAt     DateTime?
+  @@index([updatedAt])
+}
+
+model Permissao {
+  id        String             @id @default(uuid()) @db.Uuid
+  chave     String             @unique          // ex.: "cobrancas.criar"  [AUDIT P1] validada no servidor
+  descricao String
+  usuarios  UsuarioPermissao[]
+}
+
+model UsuarioRota {
+  usuarioId String  @db.Uuid
+  rotaId    String  @db.Uuid
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+  rota      Rota    @relation(fields: [rotaId], references: [id])
+  @@id([usuarioId, rotaId])
+}
+
+model UsuarioPermissao {
+  usuarioId   String    @db.Uuid
+  permissaoId String    @db.Uuid
+  usuario     Usuario   @relation(fields: [usuarioId], references: [id])
+  permissao   Permissao @relation(fields: [permissaoId], references: [id])
+  @@id([usuarioId, permissaoId])
+}
+
+// ----------------------------------------------------------------------------
+// CLIENTE E ENDEREÇO
+// ----------------------------------------------------------------------------
+model Cliente {
+  id           String                  @id @default(uuid()) @db.Uuid
+  tipo         TipoCliente
+  nome         String                                       // nome ou razão social
+  cpfCnpj      String                  @unique
+  rgIe         String?
+  telefones    Json                    @default("[]")
+  observacoes  String?
+  rotaId       String                  @db.Uuid             // [AUDIT P1] filtro por rota no servidor (anti-IDOR)
+  rota         Rota                    @relation(fields: [rotaId], references: [id])
+  enderecos    Endereco[]
+  locacoes     Locacao[]
+  saldos       SaldoDevedorLocacao[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  deletedAt    DateTime?
+  version      Int                     @default(0)   // concorrência otimista (alinha com DTO/service e o sync)
+  @@index([rotaId])
+  @@index([updatedAt])
+}
+
+model Endereco {
+  id          String    @id @default(uuid()) @db.Uuid
+  clienteId   String    @db.Uuid
+  cliente     Cliente   @relation(fields: [clienteId], references: [id])
+  logradouro  String
+  numero      String?
+  complemento String?
+  bairro      String?
+  cidade      String?
+  estado      String?
+  cep         String?
+  latitude    Float?                                        // Leaflet/GPS [AUDIT]
+  longitude   Float?
+  locacoes    Locacao[]
+  version          Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  @@index([clienteId])
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// PRODUTO
+// ----------------------------------------------------------------------------
+model Produto {
+  id            String     @id @default(uuid()) @db.Uuid
+  plaqueta      String     @unique
+  tipoId        String     @db.Uuid
+  tipo          TipoProduto @relation(fields: [tipoId], references: [id])
+  descricao     String?                                     // cor
+  tamanhoId     String     @db.Uuid
+  tamanho       Tamanho    @relation(fields: [tamanhoId], references: [id])
+  condicaoId    String     @db.Uuid
+  condicao      Condicao   @relation(fields: [condicaoId], references: [id])
+  chave         String?                                     // nº da chave física
+  contador      Int        @default(0)                      // contador atual
+  locacoes      Locacao[]
+  manutencoes   Manutencao[]
+  version          Int       @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  deletedAt     DateTime?
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// LOCAÇÃO
+// [AUDIT P0] saldoDevedorAtual é DERIVADO de Pagamento (append-only), nunca
+//            sincronizado como verdade. O servidor recalcula. Ver core/calculo.ts.
+// [AUDIT P1] uma locação ATIVA por produto garantida por coluna única nula:
+//            chaveProdutoAtivo = produtoId quando ATIVA, null quando FINALIZADA.
+// ----------------------------------------------------------------------------
+model Locacao {
+  id                 String           @id @default(uuid()) @db.Uuid
+  produtoId          String           @db.Uuid
+  produto            Produto          @relation(fields: [produtoId], references: [id])
+  clienteId          String           @db.Uuid
+  cliente            Cliente          @relation(fields: [clienteId], references: [id])
+  enderecoId         String           @db.Uuid
+  endereco           Endereco         @relation(fields: [enderecoId], references: [id])
+
+  regra              RegraCobranca
+  frequencia         Frequencia?                            // só em VALOR_FIXO
+  valorFixo          Decimal?         @db.Decimal(12, 2)    // [AUDIT P2] Decimal, nunca Float
+  valorPartida       Decimal?         @db.Decimal(12, 2)
+  percentual         Decimal?         @db.Decimal(7, 4)     // taxa, ex.: 30.0000
+
+  contadorInicial    Int              @default(0)
+  dataInicio         DateTime
+  dataFim            DateTime?
+  status             StatusLocacao    @default(ATIVA)
+  finalizacaoTipo    TipoFinalizacao?
+  depositoId         String?          @db.Uuid
+  deposito           Deposito?        @relation(fields: [depositoId], references: [id])
+  relocadaParaId     String?          @db.Uuid             // [AUDIT lacuna] rastro da relocação
+  saldoDevedorAtual  Decimal          @default(0) @db.Decimal(12, 2) // cache derivado
+
+  // Versão de regra: edição de regra não altera cobranças passadas [AUDIT P1]
+  regraVersao        Int              @default(1)
+  // Coluna única nula que impede 2 locações ativas no mesmo produto
+  chaveProdutoAtivo  String?          @unique @db.Uuid
+
+  cobrancas          Cobranca[]
+  saldos             SaldoDevedorLocacao[]
+
+  // [AUDIT P1] concorrência otimista para o sync (evita LWW cego)
+  version            Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  deletedAt          DateTime?
+
+  @@index([produtoId])
+  @@index([clienteId])
+  @@index([status])
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// COBRANÇA  (append-only — correções via estorno, nunca sobrescrita no sync)
+// [AUDIT P0] memorial persistido como snapshot reproduzível
+// [AUDIT P0] idempotência: id gerado no cliente; gravação upsert por id
+// ----------------------------------------------------------------------------
+model Cobranca {
+  id                    String          @id @default(uuid()) @db.Uuid
+  locacaoId             String          @db.Uuid
+  locacao               Locacao         @relation(fields: [locacaoId], references: [id])
+  usuarioId             String          @db.Uuid
+  usuario               Usuario         @relation(fields: [usuarioId], references: [id])
+  dataCobranca          DateTime
+
+  // snapshot do cálculo (regra usada na época)
+  regraSnapshot         RegraCobranca
+  regraVersaoSnapshot   Int
+  contadorAnterior      Int?
+  contadorAtual         Int?
+  contadorReiniciado    Boolean         @default(false)     // [AUDIT P2] rollover/troca de contador
+  partidasJogadas       Int?
+  descontoPartidas      Int             @default(0)
+  partidasConsideradas  Int?
+  acrescimo             Decimal         @default(0) @db.Decimal(12, 2)
+  valorBruto            Decimal?        @db.Decimal(12, 2)
+  valorPercentual       Decimal?        @db.Decimal(12, 2)
+  descontoValorReceber  Decimal         @default(0) @db.Decimal(12, 2)
+  valorLiquidoBase      Decimal         @db.Decimal(12, 2)
+  saldoDevedorAnterior  Decimal         @db.Decimal(12, 2)
+  valorLiquidoFinal     Decimal         @db.Decimal(12, 2)
+
+  trocaPano             Boolean         @default(false)
+  statusPagamento       StatusPagamento @default(PENDENTE)
+
+  // PIX Mercado Pago (online); fallback offline = PIX_MANUAL [AUDIT P1]
+  pixId                 String?
+  pagamentos            Pagamento[]
+  manutencoes           Manutencao[]
+
+  version               Int             @default(0)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  deletedAt             DateTime?
+
+  @@index([locacaoId, dataCobranca])
+  @@index([usuarioId])
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// PAGAMENTO  [AUDIT P0/P1] — fonte da verdade append-only do saldo.
+// Vários dispositivos podem registrar pagamentos sem sobrescrever uns aos outros.
+// O saldo é SEMPRE recalculado a partir desta tabela.
+// ----------------------------------------------------------------------------
+model Pagamento {
+  id              String              @id @default(uuid()) @db.Uuid
+  alvo            AlvoPagamento
+  cobrancaId      String?             @db.Uuid
+  cobranca        Cobranca?           @relation(fields: [cobrancaId], references: [id])
+  saldoId         String?             @db.Uuid
+  saldo           SaldoDevedorLocacao? @relation(fields: [saldoId], references: [id])
+  usuarioId       String              @db.Uuid
+  usuario         Usuario             @relation(fields: [usuarioId], references: [id])
+  valor           Decimal             @db.Decimal(12, 2)
+  formaPagamento  FormaPagamento
+  pixId           String?
+  dataPagamento   DateTime
+  estornadoPorId  String?             @db.Uuid             // estorno = novo registro que anula
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+  @@index([cobrancaId])
+  @@index([saldoId])
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// SALDO DEVEDOR DE LOCAÇÃO FINALIZADA
+// ----------------------------------------------------------------------------
+model SaldoDevedorLocacao {
+  id                String      @id @default(uuid()) @db.Uuid
+  locacaoId         String      @db.Uuid
+  locacao           Locacao     @relation(fields: [locacaoId], references: [id])
+  clienteId         String      @db.Uuid
+  cliente           Cliente     @relation(fields: [clienteId], references: [id])
+  produtoDescricao  String                                  // snapshot textual
+  valorOriginal     Decimal     @db.Decimal(12, 2)
+  valorRestante     Decimal     @db.Decimal(12, 2)          // derivado de Pagamento
+  status            StatusSaldo @default(PENDENTE)
+  dataQuitacao      DateTime?
+  pagamentos        Pagamento[]
+  version           Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  deletedAt         DateTime?
+  @@index([clienteId])
+  @@index([status])
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// MANUTENÇÃO
+// ----------------------------------------------------------------------------
+model Manutencao {
+  id          String         @id @default(uuid()) @db.Uuid
+  produtoId   String         @db.Uuid
+  produto     Produto        @relation(fields: [produtoId], references: [id])
+  cobrancaId  String?        @db.Uuid
+  cobranca    Cobranca?      @relation(fields: [cobrancaId], references: [id])
+  usuarioId   String         @db.Uuid
+  usuario     Usuario        @relation(fields: [usuarioId], references: [id])
+  tipo        TipoManutencao
+  descricao   String?
+  data        DateTime
+  version     Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  deletedAt   DateTime?
+  @@index([produtoId])
+  @@index([updatedAt])
+}
+
+// ----------------------------------------------------------------------------
+// LOG DE AUDITORIA  [AUDIT P2] — nunca registra senha/token nos JSON
+// ----------------------------------------------------------------------------
+model LogAuditoria {
+  id              String   @id @default(uuid()) @db.Uuid
+  usuarioId       String?  @db.Uuid
+  acao            String
+  entidade        String
+  entidadeId      String?
+  dadosAnteriores Json?
+  dadosNovos      Json?
+  ip              String?
+  criadoEm        DateTime @default(now())
+  @@index([usuarioId])
+  @@index([entidade, entidadeId])
+  @@index([criadoEm])
+}
+
+// ----------------------------------------------------------------------------
+// CONFLITO DE SINCRONIZAÇÃO  [AUDIT P2] — entidade citada na spec, agora modelada
+// ----------------------------------------------------------------------------
+model ConflitoSincronizacao {
+  id              String   @id @default(uuid()) @db.Uuid
+  entidade        String
+  entidadeId      String
+  versaoServidor  Int
+  versaoCliente   Int
+  dadosCliente    Json
+  resolvido       Boolean  @default(false)
+  criadoEm        DateTime @default(now())
+  @@index([entidade, entidadeId])
+  @@index([resolvido])
+}
+
+// ----------------------------------------------------------------------------
+// CONFIGURAÇÃO  [AUDIT P1] — credenciais (ex.: token Mercado Pago) criptografadas at-rest
+// ----------------------------------------------------------------------------
+model Configuracao {
+  id                 String   @id @default(uuid()) @db.Uuid
+  chave              String   @unique          // ex.: "mercadopago.accessToken"
+  valorCriptografado String                    // AES-256-GCM
+  updatedAt          DateTime @updatedAt
+}

@@ -1,0 +1,3 @@
+# Harnesses standalone (CommonJS, usam require) — fora do escopo do lint TS do app
+*-harness.js
+**/*-harness.js
