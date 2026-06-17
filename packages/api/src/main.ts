@@ -1,3 +1,5 @@
+// Sentry: precisa ser o PRIMEIRO import (instrumenta os demais módulos)
+import './instrument';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
