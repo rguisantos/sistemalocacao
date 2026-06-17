@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity } from 'react-native';
 import { relatorioCobrancas } from '../../dominio/repositorios';
 import { formatarBRL } from '@app/core';
-import { cores, espaco, raio, fonte } from '../tema';
+import { cores, espaco, raio } from '../tema';
 import { Cartao, MetricCard, CabecalhoSecao } from '../componentes/kit';
 
 const PT_FORMA: Record<string, string> = { DINHEIRO: 'Dinheiro', PIX_MANUAL: 'PIX', CARTAO: 'Cartão', PIX_MERCADO_PAGO: 'PIX (Mercado Pago)' };

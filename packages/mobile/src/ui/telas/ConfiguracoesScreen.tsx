@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { obterDiasAtraso, definirDiasAtraso } from '../../dominio/repositorios';
-import { cores, espaco, raio, fonte } from '../tema';
+import { cores, espaco, raio } from '../tema';
 import { CampoTexto, Secao, BotaoPrimario } from '../componentes/kit';
 
 const PRESETS = [7, 15, 30, 60];

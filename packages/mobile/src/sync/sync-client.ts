@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { obterDb, todos, obterMeta, definirMeta, emTransacao } from '../db/database';
+import { todos, obterMeta, definirMeta, emTransacao } from '../db/database';
 import { REGISTROS, PORTABELA, CAMPOS_BOOL, CAMPOS_JSON } from './entidades';
 import { api } from './api';
 

@@ -13,8 +13,8 @@ jobs:
     name: Lint, build e verificações (sem infra)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: '22' }
       - run: npm install -g npm@11
       - run: npm ci --legacy-peer-deps --no-audit --no-fund
@@ -65,8 +65,8 @@ jobs:
       JWT_SECRET: segredo-de-ci-com-pelo-menos-32-caracteres!!
       CONFIG_SECRET: segredo-de-config-ci-com-32-ou-mais-caracteres
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: '22' }
       - run: npm install -g npm@11
       - run: npm ci --legacy-peer-deps --no-audit --no-fund
@@ -84,8 +84,8 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with: { node-version: '22' }
       - run: npm install -g npm@11
       - run: npm ci --legacy-peer-deps --no-audit --no-fund

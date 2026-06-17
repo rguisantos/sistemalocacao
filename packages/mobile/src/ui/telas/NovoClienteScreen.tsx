@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { MapaLeaflet } from '../componentes/MapaLeaflet';
 import { criarClienteComEndereco } from '../../dominio/repositorios';
-import { cores, espaco, raio, fonte } from '../tema';
+import { cores, espaco, raio } from '../tema';
 import { CampoTexto, Secao, BotaoPrimario } from '../componentes/kit';
 
 export function NovoClienteScreen({ route, navigation }: any) {

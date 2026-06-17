@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { login } from '../../auth/auth-service';
-import { cores, espaco, raio, fonte } from '../tema';
+import { cores, espaco, raio } from '../tema';
 import { CampoTexto, BotaoPrimario } from '../componentes/kit';
 
 export function LoginScreen({ navigation }: any) {
