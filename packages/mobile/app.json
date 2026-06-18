@@ -19,7 +19,8 @@
       "expo-secure-store",
       "expo-location",
       "expo-background-fetch",
-      "expo-task-manager"
+      "expo-task-manager",
+      "expo-updates"
     ],
     "ios": {
       "supportsTablet": true,
