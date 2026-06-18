@@ -9,6 +9,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npm run build -w @app/core",
     "test": "npm -ws --if-present run test",
     "build": "npm -ws --if-present run build"
   },
