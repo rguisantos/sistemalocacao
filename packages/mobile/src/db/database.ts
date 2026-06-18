@@ -1,4 +1,4 @@
-import * as SQLite from 'expo-sqlite/next';
+import * as SQLite from 'expo-sqlite';
 import { SCHEMA_SQL } from './schema';
 
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
