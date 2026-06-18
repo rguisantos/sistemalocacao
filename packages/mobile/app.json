@@ -6,17 +6,43 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/2dec6556-37e0-494c-b71f-cba6562ddab6"
+    },
     "plugins": [
       "expo-secure-store",
       "expo-location",
       "expo-background-fetch",
-      "expo-task-manager"
+      "expo-task-manager",
+      "expo-updates"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.empresa.locacoes"
     },
     "android": {
-      "package": "com.empresa.locacoes"
-    }
+      "package": "com.empresa.locacoes",
+      "adaptiveIcon": {
+        "backgroundColor": "#1e40af"
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2dec6556-37e0-494c-b71f-cba6562ddab6"
+      }
+    },
+    "owner": "rguisantoss"
   }
 }
