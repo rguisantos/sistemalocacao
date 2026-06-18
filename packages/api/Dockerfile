@@ -1,19 +1,19 @@
 # Build multi-stágio da API (contexto = raiz do monorepo).
-FROM node:20-slim AS build
+FROM node:22-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json* ./
 COPY packages/core/package.json packages/core/
 COPY packages/api/package.json packages/api/
 COPY packages/database packages/database
-RUN npm ci
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
 COPY packages/core packages/core
 COPY packages/api packages/api
 RUN npm -w @app/core run build \
  && npm -w @app/api run prisma:generate \
  && npm -w @app/api run build
 
-FROM node:20-slim AS runtime
+FROM node:22-slim AS runtime
 WORKDIR /app
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
