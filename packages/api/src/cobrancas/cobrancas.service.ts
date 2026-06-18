@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import {
   calcularValorFixo, calcularPercentual, aplicarPagamento, menorQue,
-} from '@app/core';
+} from '@app/core/server';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService } from '../comum/auditoria/auditoria.service';

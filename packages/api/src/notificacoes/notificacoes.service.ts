@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { vencidaValorFixo, vencidaPercentual, Frequencia } from '@app/core';
+import { vencidaValorFixo, vencidaPercentual, Frequencia } from '@app/core/server';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 import { ConfiguracaoService } from '../integracao/configuracao.service';
