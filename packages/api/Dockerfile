@@ -19,7 +19,8 @@ RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
-WORKDIR /app/packages/api
+# Porta que a app escuta (validarEnv() lê process.env.PORT, default 3000)
 EXPOSE 3000
-# aplica migrations e sobe
-CMD ["sh", "-c", "npx prisma migrate deploy --schema ../database/prisma/schema.prisma && node dist/main.js"]
+# Aplica migrations e sobe a API — caminhos absolutos para funcionar
+# independente do WORKDIR que o Railway definir via startCommand.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema /app/packages/database/prisma/schema.prisma && node /app/packages/api/dist/main.js"]
