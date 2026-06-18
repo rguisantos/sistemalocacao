@@ -31,7 +31,8 @@
     "react-native-safe-area-context": "4.8.2",
     "react-native-thermal-receipt-printer": "^1.1.5",
     "react-native-webview": "13.6.4",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "expo-eas-client": "0.4.1"
   },
   "devDependencies": {
     "@types/react": "~18.2.0",
