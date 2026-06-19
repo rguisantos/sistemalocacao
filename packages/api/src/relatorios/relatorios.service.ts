@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { somar } from '@app/core';
+import { somar } from '@app/core/server';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Agregações para o painel e relatórios. Somas com precisão decimal via @app/core. */

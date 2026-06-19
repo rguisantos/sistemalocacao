@@ -1,6 +1,6 @@
 import { Body, Controller, Post, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { LIMITES_PADRAO } from '@app/core';
+import { LIMITES_PADRAO } from '@app/core/server';
 import { SyncService } from './sync.service';
 import { PullDto, PushDto } from './dto/sync.dto';
 import { RateLimit } from '../comum/decorators/rate-limit.decorator';

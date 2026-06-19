@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { emitirTokens, validarToken } from '@app/core';
+import { emitirTokens, validarToken } from '@app/core/server';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**

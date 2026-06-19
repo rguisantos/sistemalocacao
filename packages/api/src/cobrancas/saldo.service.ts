@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { recalcularSaldoLocacao } from '@app/core';
+import { recalcularSaldoLocacao } from '@app/core/server';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**

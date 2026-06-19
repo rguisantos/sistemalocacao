@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { verificarLimite, PoliticaLimite } from '@app/core';
+import { verificarLimite, PoliticaLimite } from '@app/core/server';
 import { RedisService } from '../../redis/redis.service';
 import { RATE_LIMIT } from '../decorators/rate-limit.decorator';
 
