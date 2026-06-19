@@ -8,3 +8,4 @@ dist/
 packages/*/dist/
 coverage/
 packages/mobile/android/
+ref-project/
