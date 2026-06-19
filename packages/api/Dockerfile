@@ -13,7 +13,7 @@ RUN npm -w @app/core run build \
  && ls -la packages/core/dist/ \
  && npm -w @app/api run prisma:generate \
  && npm -w @app/api run build \
- && ls -la packages/api/dist/
+ && ls -la packages/api/dist/src/main.js
 
 FROM node:22-slim AS runtime
 WORKDIR /app
@@ -25,4 +25,4 @@ COPY --from=build /app/packages ./packages
 EXPOSE 3000
 # Aplica migrations e sobe a API — caminhos absolutos para funcionar
 # independente do WORKDIR que o Railway definir via startCommand.
-CMD ["sh", "-c", "npx prisma migrate deploy --schema /app/packages/database/prisma/schema.prisma && node /app/packages/api/dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema /app/packages/database/prisma/schema.prisma && node /app/packages/api/dist/src/main.js"]
