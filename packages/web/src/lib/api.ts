@@ -1,5 +1,5 @@
 'use client';
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000';
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://sistemalocacao-api-production.up.railway.app';
 
 function token() { return typeof window !== 'undefined' ? localStorage.getItem('token') : null; }
 
