@@ -6,8 +6,30 @@
 :root { color-scheme: light; }
 body { @apply bg-papel text-tinta font-corpo antialiased; }
 
+/* ─── Dark mode overrides ─── */
+.dark body, .dark {
+  --tw-bg-opacity: 1;
+  background-color: #0f1a15;
+  color: #e8ede9;
+}
+.dark .bg-white { background-color: #1a2b23 !important; }
+.dark .bg-papel { background-color: #0f1a15 !important; }
+.dark .border-borda { border-color: #2a3d33 !important; }
+.dark .text-tinta { color: #e8ede9 !important; }
+.dark .text-suave { color: #8fa396 !important; }
+.dark .text-feltro { color: #6ee7a0 !important; }
+.dark .bg-feltro\/10 { background-color: rgba(17, 57, 43, 0.3) !important; }
+.dark .hover\:bg-papel:hover { background-color: #162420 !important; }
+.dark .hover\:bg-papel\/50:hover { background-color: rgba(22, 36, 32, 0.5) !important; }
+
 /* foco visível (acessibilidade) */
 *:focus-visible { outline: 2px solid #C08A2D; outline-offset: 2px; }
 
 /* valor monetário no estilo "ficha de caixa" */
 .valor { @apply font-ficha tabular-nums; }
+
+/* ─── Transição suave entre temas ─── */
+html { transition: background-color 0.2s ease, color 0.2s ease; }
+
+/* ─── Busca global overlay ─── */
+.search-overlay { backdrop-filter: blur(4px); }
