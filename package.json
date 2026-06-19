@@ -9,7 +9,7 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "test -f packages/core/tsconfig.json && test -d patches && npx patch-package || true",
+    "postinstall": "test -f packages/core/tsconfig.json && (npx patch-package && npm run build -w @app/core) || true",
     "test": "npm -ws --if-present run test",
     "build": "npm -ws --if-present run build"
   },
