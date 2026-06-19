@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid } from '../utils/uuid';
 import { todos, obterMeta, definirMeta, emTransacao } from '../db/database';
 import { REGISTROS, PORTABELA, CAMPOS_BOOL, CAMPOS_JSON } from './entidades';
 import { api } from './api';

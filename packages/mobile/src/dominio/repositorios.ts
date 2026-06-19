@@ -1,5 +1,5 @@
 import { todos, um, executar, emTransacao, obterMeta, definirMeta } from '../db/database';
-import { v4 as uuid } from 'uuid';
+import { v4 as uuid } from '../utils/uuid';
 import { somar } from '@app/core';
 
 /** Rotas disponíveis localmente (vindas do sync). */
