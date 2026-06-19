@@ -1,86 +1,148 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Pencil, Trash2, Users, Search } from 'lucide-react';
+import { useApi, useApiMutation, revalidar } from '@/lib/swr';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { Botao, Campo, Dialogo, Tabela } from '@/components/ui/primitives';
+import { mascararCpfCnpj } from '@/lib/masks';
+import { Botao, Campo, Select, Modal, ConfirmModal, Tabela, Badge, SearchInput, Header, SkeletonTable, toast } from '@/components/ui/primitives';
 import { MapaSeletor } from '@/components/MapaSeletor';
 import { GerenciadorEnderecos } from '@/components/GerenciadorEnderecos';
 
-interface Cliente { id: string; tipo: string; nome: string; cpfCnpj: string; rotaId: string; version: number; }
+interface Cliente { id: string; tipo: string; nome: string; cpfCnpj: string; rotaId: string; version: number; ativo?: boolean; }
 interface Rota { id: string; nome: string; }
 
 export default function Clientes() {
   const { pode } = useAuth();
-  const [clientes, setClientes] = useState<Cliente[]>([]);
-  const [rotas, setRotas] = useState<Rota[]>([]);
+  const [busca, setBusca] = useState('');
+  const [filtroRota, setFiltroRota] = useState('');
   const [editando, setEditando] = useState<any | null>(null);
+  const [excluindo, setExcluindo] = useState<Cliente | null>(null);
   const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
+  const [excluindoLoading, setExcluindoLoading] = useState(false);
 
-  const carregar = () => { api.get('/clientes').then(setClientes); api.get('/rotas').then(setRotas).catch(() => setRotas([])); };
-  useEffect(() => { carregar(); }, []);
+  const { data: clientes, isLoading } = useApi<Cliente[]>('/clientes');
+  const { data: rotas } = useApi<Rota[]>('/rotas');
+
+  const { remover } = useApiMutation();
+
+  // Filtro client-side (API não suporta busca ainda)
+  const clientesFiltrados = (clientes ?? []).filter((c) => {
+    if (busca && !c.nome.toLowerCase().includes(busca.toLowerCase()) && !(c.cpfCnpj ?? '').includes(busca)) return false;
+    if (filtroRota && c.rotaId !== filtroRota) return false;
+    return true;
+  });
 
   function novo() { setEditando({ tipo: 'PF', endereco: {} }); }
 
   async function salvar() {
-    setErro('');
+    setErro(''); setSalvando(true);
     try {
       if (editando.id) {
         await api.patch(`/clientes/${editando.id}`, { nome: editando.nome, rotaId: editando.rotaId, version: editando.version });
+        toast('Cliente atualizado!', 'sucesso');
       } else {
         const e = editando.endereco ?? {};
         const endereco = e.logradouro
           ? { logradouro: e.logradouro, numero: e.numero, bairro: e.bairro, cidade: e.cidade, estado: e.estado, cep: e.cep, complemento: e.complemento, latitude: e.latitude, longitude: e.longitude }
           : undefined;
         await api.post('/clientes', { tipo: editando.tipo ?? 'PF', nome: editando.nome, cpfCnpj: editando.cpfCnpj, rotaId: editando.rotaId, endereco });
+        toast('Cliente criado!', 'sucesso');
       }
-      setEditando(null); carregar();
-    } catch (e: any) { setErro(e.message); }
+      setEditando(null); revalidar('/clientes');
+    } catch (e: any) { setErro(e.message); toast(e.message, 'erro'); }
+    finally { setSalvando(false); }
   }
-  async function excluir(c: Cliente) { if (confirm(`Excluir ${c.nome}?`)) { await api.del(`/clientes/${c.id}`); carregar(); } }
-  const nomeRota = (id: string) => rotas.find((r) => r.id === id)?.nome ?? '—';
+
+  async function excluirCliente() {
+    if (!excluindo) return;
+    setExcluindoLoading(true);
+    try {
+      await remover(`/clientes/${excluindo.id}`);
+      toast('Cliente excluído', 'sucesso');
+      revalidar('/clientes');
+    } catch (e: any) { toast(e.message, 'erro'); }
+    finally { setExcluindoLoading(false); setExcluindo(null); }
+  }
+
+  const nomeRota = (id: string) => rotas?.find((r) => r.id === id)?.nome ?? '—';
   const setEnd = (campo: string, valor: any) => setEditando({ ...editando, endereco: { ...(editando.endereco ?? {}), [campo]: valor } });
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-bold">Clientes</h1>
-        {pode('clientes.criar') && <Botao onClick={novo}><Plus size={16} className="inline mr-1" /> Novo cliente</Botao>}
+      <Header titulo="Clientes" subtitulo={`${clientesFiltrados.length} cliente${clientesFiltrados.length !== 1 ? 's' : ''}`}
+        acoes={pode('clientes.criar') ? <Botao onClick={novo} icon={Plus}>Novo cliente</Botao> : undefined}
+      />
+
+      {/* Filtros */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <SearchInput valor={busca} onChange={setBusca} placeholder="Buscar por nome ou CPF..." className="flex-1" />
+        <Select value={filtroRota} onChange={(e) => setFiltroRota(e.target.value)} className="sm:w-48">
+          <option value="">Todas as rotas</option>
+          {rotas?.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+        </Select>
       </div>
 
-      <Tabela colunas={['Nome', 'CPF/CNPJ', 'Rota', '']}>
-        {clientes.length === 0 && <tr><td colSpan={4} className="px-4 py-8 text-center text-suave">Nenhum cliente ainda. Crie o primeiro para começar.</td></tr>}
-        {clientes.map((c) => (
-          <tr key={c.id}>
-            <td className="px-4 py-3">{c.nome}</td>
-            <td className="px-4 py-3 valor">{c.cpfCnpj}</td>
-            <td className="px-4 py-3">{nomeRota(c.rotaId)}</td>
-            <td className="px-4 py-3 text-right">
-              <div className="flex gap-2 justify-end">
-                {pode('clientes.editar') && <button onClick={() => setEditando({ ...c })} className="text-suave hover:text-feltro"><Pencil size={16} /></button>}
-                {pode('clientes.excluir') && <button onClick={() => excluir(c)} className="text-suave hover:text-alerta"><Trash2 size={16} /></button>}
-              </div>
-            </td>
-          </tr>
-        ))}
-      </Tabela>
+      {/* Tabela */}
+      {isLoading ? <SkeletonTable /> : (
+        <>
+          {/* Desktop */}
+          <div className="hidden lg:block">
+            <Tabela colunas={['Nome', 'CPF/CNPJ', 'Rota', 'Status', '']} vazio="Nenhum cliente encontrado.">
+              {clientesFiltrados.map((c) => (
+                <tr key={c.id} className="hover:bg-papel/50 transition">
+                  <td className="px-4 py-3 font-medium">{c.nome}</td>
+                  <td className="px-4 py-3 valor">{mascararCpfCnpj(c.cpfCnpj || '')}</td>
+                  <td className="px-4 py-3">{nomeRota(c.rotaId)}</td>
+                  <td className="px-4 py-3"><Badge var={c.ativo !== false ? 'verde' : 'cinza'}>{c.ativo !== false ? 'Ativo' : 'Inativo'}</Badge></td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex gap-2 justify-end">
+                      {pode('clientes.editar') && <button onClick={() => setEditando({ ...c })} className="text-suave hover:text-feltro transition p-1"><Pencil size={16} /></button>}
+                      {pode('clientes.excluir') && <button onClick={() => setExcluindo(c)} className="text-suave hover:text-alerta transition p-1"><Trash2 size={16} /></button>}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Tabela>
+          </div>
 
-      <Dialogo aberto={!!editando} aoFechar={() => setEditando(null)} titulo={editando?.id ? 'Editar cliente' : 'Novo cliente'}>
-        {editando && (
-          <div className="flex flex-col gap-3 max-h-[78vh] overflow-auto">
-            <Campo label="Nome / Razão social" value={editando.nome ?? ''} onChange={(e) => setEditando({ ...editando, nome: e.target.value })} />
-            {!editando.id && (
-              <Campo label="CPF / CNPJ (só dígitos)" value={editando.cpfCnpj ?? ''} onChange={(e) => setEditando({ ...editando, cpfCnpj: e.target.value })} />
+          {/* Mobile cards */}
+          <div className="lg:hidden flex flex-col gap-3">
+            {clientesFiltrados.length === 0 && (
+              <div className="text-center text-suave py-12">Nenhum cliente encontrado.</div>
             )}
-            <label className="flex flex-col gap-1.5 text-sm">
-              <span className="text-suave font-medium">Rota</span>
-              <select value={editando.rotaId ?? ''} onChange={(e) => setEditando({ ...editando, rotaId: e.target.value })} className="border border-borda rounded-xl px-3 py-2 bg-white">
-                <option value="">Selecione…</option>
-                {rotas.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
-              </select>
-            </label>
+            {clientesFiltrados.map((c) => (
+              <div key={c.id} className="bg-white border border-borda rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{c.nome}</p>
+                  <p className="text-suave text-sm">{nomeRota(c.rotaId)} • {mascararCpfCnpj(c.cpfCnpj || '')}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Badge var={c.ativo !== false ? 'verde' : 'cinza'}>{c.ativo !== false ? 'Ativo' : 'Inativo'}</Badge>
+                  {pode('clientes.editar') && <button onClick={() => setEditando({ ...c })} className="text-suave hover:text-feltro p-1"><Pencil size={16} /></button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
-            {/* O endereço é cadastrado no cliente */}
+      {/* Modal de edição/criação */}
+      <Modal aberto={!!editando} aoFechar={() => setEditando(null)} titulo={editando?.id ? 'Editar cliente' : 'Novo cliente'} tamanho="lg">
+        {editando && (
+          <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Campo label="Nome / Razão social" value={editando.nome ?? ''} onChange={(e) => setEditando({ ...editando, nome: e.target.value })} />
+              {!editando.id && (
+                <Campo label="CPF / CNPJ" value={editando.cpfCnpj ?? ''} onChange={(e) => setEditando({ ...editando, cpfCnpj: desmascarar(e.target.value) })} />
+              )}
+            </div>
+            <Select label="Rota" value={editando.rotaId ?? ''} onChange={(e) => setEditando({ ...editando, rotaId: e.target.value })}>
+              <option value="">Selecione…</option>
+              {rotas?.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+            </Select>
+
             {editando.id ? (
               <div className="border-t border-borda pt-3">
                 <GerenciadorEnderecos clienteId={editando.id} />
@@ -102,13 +164,21 @@ export default function Clientes() {
             )}
 
             {erro && <p className="text-alerta text-sm">{erro}</p>}
-            <div className="flex gap-2 justify-end mt-1 sticky bottom-0 bg-white pt-2">
-              <Botao variante="secundario" onClick={() => setEditando(null)}>Fechar</Botao>
-              {(!editando.id || editando.nome) && <Botao onClick={salvar}>{editando.id ? 'Salvar cliente' : 'Criar cliente'}</Botao>}
+            <div className="flex gap-2 justify-end mt-2 pt-3 border-t border-borda">
+              <Botao variante="secundario" onClick={() => setEditando(null)}>Cancelar</Botao>
+              <Botao onClick={salvar} loading={salvando}>{editando.id ? 'Salvar' : 'Criar cliente'}</Botao>
             </div>
           </div>
         )}
-      </Dialogo>
+      </Modal>
+
+      {/* Modal de confirmação de exclusão */}
+      <ConfirmModal aberto={!!excluindo} aoFechar={() => setExcluindo(null)} onConfirm={excluirCliente}
+        titulo="Excluir cliente" mensagem={`Tem certeza que deseja excluir o cliente "${excluindo?.nome}"? Esta ação não pode ser desfeita.`}
+        loading={excluindoLoading} />
     </div>
   );
 }
+
+// Helper local
+function desmascarar(v: string) { return v.replace(/\D/g, ''); }

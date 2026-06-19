@@ -27,6 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push('/dashboard');
   }
   function sair() {
+    // Dispara evento para PainelGuard chamar a API de logout
+    window.dispatchEvent(new Event('logout-api'));
     ['token', 'refresh', 'usuario'].forEach((k) => localStorage.removeItem(k));
     setUsuario(null); router.push('/login');
   }
