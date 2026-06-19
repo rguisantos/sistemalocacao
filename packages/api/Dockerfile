@@ -2,7 +2,7 @@
 FROM node:22-slim AS build
 WORKDIR /app
 RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
-COPY package.json package-lock.json* ./
+COPY package.json package-lock.json* patches/ ./
 COPY packages/core/package.json packages/core/
 COPY packages/api/package.json packages/api/
 COPY packages/database packages/database
