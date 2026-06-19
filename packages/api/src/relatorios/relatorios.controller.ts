@@ -10,15 +10,37 @@ export class RelatoriosController {
   constructor(private readonly rel: RelatoriosService, private readonly exp: ExportacaoService) {}
 
   @Get('dashboard') @RequerPermissoes('relatorios.ler')
-  dashboard() { return this.rel.dashboard(); }
+  dashboard(
+    @Query('de') de?: string,
+    @Query('ate') ate?: string,
+    @Query('rotaId') rotaId?: string,
+  ) {
+    return this.rel.dashboard(de ? new Date(de) : undefined, ate ? new Date(ate) : undefined, rotaId || undefined);
+  }
 
   @Get('faturamento-por-rota') @RequerPermissoes('relatorios.ler')
-  faturamentoPorRota(@Query('de') de: string, @Query('ate') ate: string) {
-    return this.rel.faturamentoPorRota(new Date(de), new Date(ate));
+  faturamentoPorRota(@Query('de') de: string, @Query('ate') ate: string, @Query('rotaId') rotaId?: string) {
+    return this.rel.faturamentoPorRota(new Date(de), new Date(ate), rotaId || undefined);
   }
 
   @Get('inadimplencia') @RequerPermissoes('relatorios.ler')
   inadimplencia() { return this.rel.inadimplencia(); }
+
+  @Get('locacoes') @RequerPermissoes('relatorios.ler')
+  locacoes(@Query('de') de?: string, @Query('ate') ate?: string, @Query('rotaId') rotaId?: string) {
+    return this.rel.locacoes(de ? new Date(de) : undefined, ate ? new Date(ate) : undefined, rotaId || undefined);
+  }
+
+  @Get('produtos') @RequerPermissoes('relatorios.ler')
+  produtos() { return this.rel.produtos(); }
+
+  @Get('clientes') @RequerPermissoes('relatorios.ler')
+  clientes(@Query('rotaId') rotaId?: string) { return this.rel.clientes(rotaId || undefined); }
+
+  @Get('recebimentos') @RequerPermissoes('relatorios.ler')
+  recebimentos(@Query('de') de?: string, @Query('ate') ate?: string, @Query('rotaId') rotaId?: string) {
+    return this.rel.recebimentos(de ? new Date(de) : undefined, ate ? new Date(ate) : undefined, rotaId || undefined);
+  }
 
   // Exportação (padrão): ?formato=pdf|excel
   @Get('faturamento-por-rota/exportar') @RequerPermissoes('relatorios.exportar_pdf')

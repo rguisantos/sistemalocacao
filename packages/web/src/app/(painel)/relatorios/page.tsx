@@ -1,106 +1,67 @@
 'use client';
-import { useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { useApi } from '@/lib/swr';
-import { api } from '@/lib/api';
-import { formatarBRL } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
-import { Botao, Cartao, Campo, Tabela, Badge, SkeletonTable, toast, Header } from '@/components/ui/primitives';
-import { Calendar, Download, FileText, BarChart3 } from 'lucide-react';
+import { Header, Cartao } from '@/components/ui/primitives';
+import { DollarSign, Package, Users, Map, BarChart3, GitCompare } from 'lucide-react';
+import Link from 'next/link';
 
-const hoje = new Date().toISOString().slice(0, 10);
-const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+const CATEGORIAS = [
+  { id: 'financeiro', titulo: 'Financeiro', descricao: 'Faturamento, recebimentos e inadimplência', icone: DollarSign, cor: 'bg-latao/10 text-latao', href: '/relatorios/financeiro' },
+  { id: 'locacoes', titulo: 'Locações', descricao: 'Locações ativas e finalizadas por período', icone: Package, cor: 'bg-feltro/5 text-feltro', href: '/relatorios/locacoes' },
+  { id: 'produtos', titulo: 'Produtos', descricao: 'Produtos locados, estoque e tipos', icone: BarChart3, cor: 'bg-blue-50 text-blue-600', href: '/relatorios/produtos' },
+  { id: 'clientes', titulo: 'Clientes e Rotas', descricao: 'Distribuição de clientes por rota', icone: Users, cor: 'bg-purple-50 text-purple-600', href: '/relatorios/clientes' },
+  { id: 'recebimentos', titulo: 'Recebimentos', descricao: 'Recebimentos por forma de pagamento', icone: Map, cor: 'bg-emerald-50 text-emerald-600', href: '/relatorios/recebimentos' },
+  { id: 'comparativo', titulo: 'Comparativo', descricao: 'Comparação período a período', icone: GitCompare, cor: 'bg-amber-50 text-amber-600', href: '/relatorios/comparativo' },
+];
 
-export default function Relatorios() {
+export default function RelatoriosHub() {
   const { pode } = useAuth();
-  const [de, setDe] = useState(inicioMes);
-  const [ate, setAte] = useState(hoje);
-  const [gerado, setGerado] = useState(false);
-
-  const { data: porRota, isLoading: loadingPorRota } = useApi<any[]>(gerado ? `/relatorios/faturamento-por-rota?de=${de}&ate=${ate}` : null);
-  const { data: inad, isLoading: loadingInad } = useApi<any[]>(gerado ? '/relatorios/inadimplencia' : null);
 
   if (!pode('relatorios.ler')) {
     return (
       <div className="flex flex-col gap-6">
         <Header titulo="Relatórios" />
         <Cartao className="text-suave text-center py-12">
-          <FileText size={48} className="mx-auto mb-3 text-suave/30" />
+          <BarChart3 size={48} className="mx-auto mb-3 text-suave/30" />
           <p className="font-medium">Você não tem permissão para acessar relatórios.</p>
         </Cartao>
       </div>
     );
   }
 
-  function gerar() {
-    setGerado(true);
-    toast('Relatório gerado com sucesso', 'sucesso');
-  }
-
-  function exportar(formato: 'pdf' | 'excel') {
-    api.baixar(`/relatorios/faturamento-por-rota/exportar?de=${de}&ate=${ate}&formato=${formato}`,
-      `faturamento-por-rota.${formato === 'excel' ? 'xlsx' : 'pdf'}`)
-      .then(() => toast('Arquivo exportado!', 'sucesso'))
-      .catch((e: any) => toast(e.message, 'erro'));
-  }
-
-  const exportButtons = pode('relatorios.exportar_pdf') ? (
-    <div className="flex gap-2">
-      <Botao variante="secundario" tamanho="sm" icon={Download} onClick={() => exportar('pdf')}>PDF</Botao>
-      <Botao variante="secundario" tamanho="sm" icon={Download} onClick={() => exportar('excel')}>Excel</Botao>
-    </div>
-  ) : null;
-
   return (
     <div className="flex flex-col gap-6">
-      <Header titulo="Relatórios" subtitulo="Faturamento, inadimplência e exportações" acoes={exportButtons} />
+      <Header titulo="Relatórios" subtitulo="Selecione uma categoria para ver os dados detalhados" />
 
-      <Cartao className="flex flex-wrap items-end gap-3">
-        <Campo label="De" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
-        <Campo label="Até" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
-        <Botao onClick={gerar} icon={BarChart3}>Gerar</Botao>
-      </Cartao>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {CATEGORIAS.map((cat) => (
+          <Link key={cat.id} href={cat.href}>
+            <Cartao hover className="flex items-start gap-4 h-full cursor-pointer">
+              <div className={`p-3 rounded-xl flex-shrink-0 ${cat.cor}`}>
+                <cat.icone size={24} />
+              </div>
+              <div>
+                <h3 className="font-display font-semibold text-sm">{cat.titulo}</h3>
+                <p className="text-suave text-xs mt-1">{cat.descricao}</p>
+              </div>
+            </Cartao>
+          </Link>
+        ))}
+      </div>
 
-      {loadingPorRota && <SkeletonTable />}
-      {porRota && porRota.length > 0 && (
-        <Cartao>
-          <h2 className="font-display font-semibold mb-4">Faturamento por rota</h2>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={porRota.map((r: any) => ({ rota: r.rota, valor: Number(r.valor) }))}>
-                <XAxis dataKey="rota" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => formatarBRL(v)} />
-                <Bar dataKey="valor" fill="#C08A2D" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+      {/* Atalho rápido para inadimplência */}
+      <Link href="/relatorios/financeiro">
+        <Cartao hover className="flex items-center gap-4 cursor-pointer border-l-4 border-l-alerta">
+          <AlertTriangle size={24} className="text-alerta" />
+          <div>
+            <h3 className="font-display font-semibold text-sm">Inadimplência</h3>
+            <p className="text-suave text-xs">Veja clientes com saldos devedores e cobranças pendentes</p>
           </div>
         </Cartao>
-      )}
-
-      {loadingInad && <SkeletonTable />}
-      {inad && (
-        <div>
-          <h2 className="font-display font-semibold mb-2">Inadimplência</h2>
-          <Tabela colunas={['Cliente', 'Origem', 'Valor']} vazio="Nenhuma inadimplência encontrada.">
-            {(inad as any[]).map((i: any, k: number) => (
-              <tr key={k}>
-                <td className="px-4 py-3 font-medium">{i.cliente}</td>
-                <td className="px-4 py-3 text-suave">{i.origem}</td>
-                <td className="px-4 py-3 valor">{formatarBRL(i.valor)}</td>
-              </tr>
-            ))}
-          </Tabela>
-        </div>
-      )}
-
-      {!gerado && (
-        <Cartao className="text-center py-12 text-suave">
-          <Calendar size={48} className="mx-auto mb-3 text-suave/30" />
-          <p className="font-medium">Selecione o período e clique em Gerar</p>
-          <p className="text-sm mt-1">Os dados do relatório aparecerão aqui</p>
-        </Cartao>
-      )}
+      </Link>
     </div>
   );
+}
+
+function AlertTriangle(props: any) {
+  return <svg xmlns="http://www.w3.org/2000/svg" width={props.size || 24} height={props.size || 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={props.className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>;
 }
