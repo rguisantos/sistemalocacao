@@ -16,6 +16,20 @@
       "url": "https://u.expo.dev/2dec6556-37e0-494c-b71f-cba6562ddab6"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "buildToolsVersion": "35.0.0"
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-location",
       "expo-background-fetch",
