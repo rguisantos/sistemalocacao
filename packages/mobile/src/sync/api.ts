@@ -1,6 +1,7 @@
 import { obterToken, renovarToken } from '../auth/auth-storage';
+import { API_BASE_URL } from '../config';
 
-let BASE_URL = 'http://localhost:3000';
+let BASE_URL = API_BASE_URL;
 export function configurarApi(url: string) { BASE_URL = url; }
 
 async function requisitar(path: string, body: any, comToken = true, tentouRenovar = false): Promise<any> {
