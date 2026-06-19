@@ -33,7 +33,23 @@ async function main() {
     });
     console.log(`Admin criado (CPF ${cpf}).`);
   } else {
-    console.log('Admin já existe — pulando.');
+    // Admin já existe — sincroniza permissões que possam ter sido adicionadas
+    const todasPermissoes = await prisma.permissao.findMany({
+      where: { chave: { in: PAPEIS.Administrador } }, select: { id: true },
+    });
+    const existentes = await prisma.usuarioPermissao.findMany({
+      where: { usuarioId: existe.id }, select: { permissaoId: true },
+    });
+    const idsExistentes = new Set(existentes.map((e) => e.permissaoId));
+    const novas = todasPermissoes.filter((p) => !idsExistentes.has(p.id));
+    if (novas.length > 0) {
+      await prisma.usuarioPermissao.createMany({
+        data: novas.map((p) => ({ usuarioId: existe.id, permissaoId: p.id })),
+      });
+      console.log(`+${novas.length} permissões adicionadas ao admin.`);
+    } else {
+      console.log('Admin já existe com todas as permissões — pulando.');
+    }
   }
   console.log(`${PERMISSOES.length} permissões garantidas.`);
 }

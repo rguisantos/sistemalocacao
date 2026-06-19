@@ -24,6 +24,7 @@ import { NotificacoesModule } from './notificacoes/notificacoes.module';
 import { RateLimitGuard } from './comum/guards/rate-limit.guard';
 import { JwtAuthGuard } from './comum/guards/jwt-auth.guard';
 import { PermissoesGuard } from './comum/guards/permissoes.guard';
+import { PermissoesSeedService } from './comum/seed/permissoes-seed.service';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { PermissoesGuard } from './comum/guards/permissoes.guard';
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissoesGuard },
+    // Sincroniza permissões do catálogo com o banco na inicialização.
+    PermissoesSeedService,
   ],
 })
 export class AppModule {}

@@ -3,16 +3,27 @@ import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '@/lib/api';
 import { formatarBRL } from '@/lib/format';
+import { useAuth } from '@/lib/auth';
 import { Botao, Cartao, Campo, Tabela } from '@/components/ui/primitives';
 
 const hoje = new Date().toISOString().slice(0, 10);
 const inicioMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
 
 export default function Relatorios() {
+  const { pode } = useAuth();
   const [de, setDe] = useState(inicioMes); const [ate, setAte] = useState(hoje);
   const [porRota, setPorRota] = useState<any[]>([]);
   const [inad, setInad] = useState<any[]>([]);
   const [erro, setErro] = useState('');
+
+  if (!pode('relatorios.ler')) {
+    return (
+      <div className="flex flex-col gap-6">
+        <h1 className="font-display text-2xl font-bold">Relatórios</h1>
+        <Cartao className="text-suave">Você não tem permissão para acessar relatórios.</Cartao>
+      </div>
+    );
+  }
 
   async function gerar() {
     setErro('');
@@ -33,8 +44,10 @@ export default function Relatorios() {
         <Campo label="De" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
         <Campo label="Até" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
         <Botao onClick={gerar}>Gerar</Botao>
-        <Botao variante="secundario" onClick={() => exportar('pdf')}>Exportar PDF</Botao>
-        <Botao variante="secundario" onClick={() => exportar('excel')}>Exportar Excel</Botao>
+        {pode('relatorios.exportar_pdf') && <>
+          <Botao variante="secundario" onClick={() => exportar('pdf')}>Exportar PDF</Botao>
+          <Botao variante="secundario" onClick={() => exportar('excel')}>Exportar Excel</Botao>
+        </>}
       </Cartao>
       {erro && <p className="text-alerta text-sm">{erro}</p>}
 

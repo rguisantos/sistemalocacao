@@ -64,6 +64,9 @@ export const PERMISSOES: { chave: string; descricao: string }[] = [
   { chave: 'manutencoes.criar', descricao: 'Criar manutenções' },
   { chave: 'manutencoes.editar', descricao: 'Editar manutenções' },
   { chave: 'manutencoes.excluir', descricao: 'Excluir manutenções' },
+  // Relatórios
+  { chave: 'relatorios.ler', descricao: 'Acessar relatórios' },
+  { chave: 'relatorios.exportar_pdf', descricao: 'Exportar relatórios em PDF/Excel' },
 ];
 
 export const PAPEIS: Record<string, string[]> = {
@@ -73,6 +76,7 @@ export const PAPEIS: Record<string, string[]> = {
     'auxiliares.tipos.ler', 'auxiliares.tamanhos.ler', 'auxiliares.condicoes.ler',
     'clientes.ler', 'clientes.ler_todas_rotas', 'clientes.criar', 'clientes.editar', 'clientes.transferir_rota',
     'locacoes.ler', 'locacoes.criar', 'cobrancas.ler', 'manutencoes.ler',
+    'relatorios.ler',
   ],
   AcessoControlado: [
     'clientes.ler', 'locacoes.ler', 'cobrancas.ler', 'cobrancas.criar',

@@ -5,25 +5,25 @@ import { LayoutDashboard, Users, Package, Map, FileText, LogOut, UserCog, Route,
 import { useAuth } from '@/lib/auth';
 import clsx from 'clsx';
 
-const ITENS = [
+const ITENS: { href: string; rotulo: string; icone: typeof LayoutDashboard; permissao?: string }[] = [
   { href: '/dashboard', rotulo: 'Painel', icone: LayoutDashboard },
-  { href: '/clientes', rotulo: 'Clientes', icone: Users },
-  { href: '/produtos', rotulo: 'Produtos', icone: Package },
-  { href: '/locacoes', rotulo: 'Locações', icone: FileSignature },
-  { href: '/cobrancas', rotulo: 'Cobrança', icone: Receipt },
-  { href: '/usuarios', rotulo: 'Usuários', icone: UserCog },
-  { href: '/rotas', rotulo: 'Rotas', icone: Route },
-  { href: '/depositos', rotulo: 'Depósitos', icone: Warehouse },
-  { href: '/tipos-produto', rotulo: 'Cadastros', icone: Tags },
+  { href: '/clientes', rotulo: 'Clientes', icone: Users, permissao: 'clientes.ler' },
+  { href: '/produtos', rotulo: 'Produtos', icone: Package, permissao: 'produtos.ler' },
+  { href: '/locacoes', rotulo: 'Locações', icone: FileSignature, permissao: 'locacoes.ler' },
+  { href: '/cobrancas', rotulo: 'Cobrança', icone: Receipt, permissao: 'cobrancas.ler' },
+  { href: '/usuarios', rotulo: 'Usuários', icone: UserCog, permissao: 'admin.usuarios.ler' },
+  { href: '/rotas', rotulo: 'Rotas', icone: Route, permissao: 'rotas.ler' },
+  { href: '/depositos', rotulo: 'Depósitos', icone: Warehouse, permissao: 'depositos.ler' },
+  { href: '/tipos-produto', rotulo: 'Cadastros', icone: Tags, permissao: 'auxiliares.tipos.ler' },
   { href: '/mapa', rotulo: 'Mapa', icone: Map },
-  { href: '/relatorios', rotulo: 'Relatórios', icone: FileText },
-  { href: '/auditoria', rotulo: 'Auditoria', icone: ScrollText },
+  { href: '/relatorios', rotulo: 'Relatórios', icone: FileText, permissao: 'relatorios.ler' },
+  { href: '/auditoria', rotulo: 'Auditoria', icone: ScrollText, permissao: 'admin.auditoria.ler' },
   { href: '/configuracoes', rotulo: 'Configurações', icone: Settings },
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const caminho = usePathname();
-  const { usuario, sair } = useAuth();
+  const { usuario, sair, pode } = useAuth();
   return (
     <div className="min-h-screen grid grid-cols-[240px_1fr]">
       <aside className="bg-feltro text-papel/90 flex flex-col p-4">
@@ -32,7 +32,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <p className="text-papel/60 text-xs">{usuario?.nome}</p>
         </div>
         <nav className="flex flex-col gap-1 flex-1">
-          {ITENS.map(({ href, rotulo, icone: Icone }) => (
+          {ITENS.filter((item) => !item.permissao || pode(item.permissao)).map(({ href, rotulo, icone: Icone }) => (
             <Link key={href} href={href}
               className={clsx('flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition',
                 caminho.startsWith(href) ? 'bg-feltro-claro text-white' : 'hover:bg-feltro-claro/50')}>
