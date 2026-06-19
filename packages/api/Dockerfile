@@ -6,12 +6,14 @@ COPY package.json package-lock.json* patches/ ./
 COPY packages/core/package.json packages/core/
 COPY packages/api/package.json packages/api/
 COPY packages/database packages/database
-RUN npm ci --legacy-peer-deps --no-audit --no-fund
+RUN npm ci --legacy-peer-deps --no-audit --no-fund --ignore-scripts
 COPY packages/core packages/core
 COPY packages/api packages/api
 RUN npm -w @app/core run build \
+ && ls -la packages/core/dist/ \
  && npm -w @app/api run prisma:generate \
- && npm -w @app/api run build
+ && npm -w @app/api run build \
+ && ls -la packages/api/dist/
 
 FROM node:22-slim AS runtime
 WORKDIR /app
