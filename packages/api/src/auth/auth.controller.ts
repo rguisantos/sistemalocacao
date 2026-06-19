@@ -1,6 +1,6 @@
 import { Body, Controller, Post, Req, HttpCode } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { LIMITES_PADRAO } from '@app/core';
+import { LIMITES_PADRAO } from '@app/core/server';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';

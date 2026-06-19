@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   Entidade, sanitizarPush, resolver,
-} from '@app/core';
+} from '@app/core/server';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';

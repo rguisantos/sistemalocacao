@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import Redis from 'ioredis';
-import { RateStore } from '@app/core';
+import { RateStore } from '@app/core/server';
 
 /**
  * Store de rate limiting persistente (decisão da auditoria — P0).

@@ -9,6 +9,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "npx patch-package && npm run build -w @app/core",
     "test": "npm -ws --if-present run test",
     "build": "npm -ws --if-present run build"
   },
@@ -20,8 +21,9 @@
     "expo-eas-client": "0.4.1"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "@typescript-eslint/eslint-plugin": "^7.18.0"
+    "eslint": "^8.57.0",
+    "patch-package": "^8.0.1"
   }
 }

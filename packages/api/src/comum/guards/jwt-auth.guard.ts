@@ -1,6 +1,6 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { validarToken } from '@app/core';
+import { validarToken } from '@app/core/server';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PUBLICO } from '../decorators/publico.decorator';
 
