@@ -2,15 +2,16 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Pencil, Trash2, ArrowLeft, MapPin, Phone, FileText, DollarSign, ArrowRightLeft } from 'lucide-react';
+import { Pencil, Trash2, ArrowLeft, MapPin, Phone, FileText, DollarSign, ArrowRightLeft, Plus, X } from 'lucide-react';
 import { useApi, useApiMutation, revalidar } from '@/lib/swr';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatarBRL } from '@/lib/format';
 import { mascararCpfCnpj, mascararTelefone } from '@/lib/masks';
 import { data as fmtData } from '@/lib/format';
-import { Cartao, Badge, Botao, Modal, ConfirmModal, Select, Tabela, Header, KpiCard, SkeletonCard, SkeletonTable, toast } from '@/components/ui/primitives';
+import { Cartao, Badge, Botao, Modal, ConfirmModal, Select, Campo, Tabela, Header, KpiCard, SkeletonCard, SkeletonTable, toast } from '@/components/ui/primitives';
 import { StatusLocacaoBadge, StatusSaldoBadge, StatusPagamentoBadge } from '@/components/ui/primitives';
+import { GerenciadorEnderecos } from '@/components/GerenciadorEnderecos';
 
 export default function ClienteDetalhe() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,11 @@ export default function ClienteDetalhe() {
   const [transferindo, setTransferindo] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [excluindoLoading, setExcluindoLoading] = useState(false);
+  const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [editNome, setEditNome] = useState('');
+  const [editRotaId, setEditRotaId] = useState('');
+  const [editObs, setEditObs] = useState('');
 
   const { remover } = useApiMutation();
 
@@ -71,9 +77,7 @@ export default function ClienteDetalhe() {
         acoes={
           <div className="flex gap-2">
             {pode('clientes.editar') && (
-              <Link href={`/clientes/${id}/editar`}>
-                <Botao variante="secundario" tamanho="sm" icon={Pencil}>Editar</Botao>
-              </Link>
+              <Botao variante="secundario" tamanho="sm" icon={Pencil} onClick={() => { setEditNome(c.nome); setEditRotaId(c.rotaId); setEditObs(c.observacoes ?? ''); setEditando(true); }}>Editar</Botao>
             )}
             {pode('clientes.excluir') && (
               <Botao variante="perigo" tamanho="sm" icon={Trash2} onClick={() => setExcluindo(true)}>Excluir</Botao>
@@ -211,22 +215,10 @@ export default function ClienteDetalhe() {
             </div>
           </Cartao>
 
-          {/* Endereços */}
-          {c.enderecos && c.enderecos.length > 0 && (
-            <Cartao>
-              <h2 className="font-display font-semibold mb-3">Endereços</h2>
-              {c.enderecos.map((e: any, i: number) => (
-                <div key={i} className={`flex items-start gap-2 text-sm ${i > 0 ? 'mt-3 pt-3 border-t border-borda' : ''}`}>
-                  <MapPin size={14} className="text-suave mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p>{e.logradouro}{e.numero ? `, ${e.numero}` : ''}</p>
-                    {e.bairro && <p className="text-suave">{e.bairro}</p>}
-                    <p className="text-suave text-xs">{e.cidade}{e.estado ? ` - ${e.estado}` : ''}{e.cep ? ` • ${e.cep}` : ''}</p>
-                  </div>
-                </div>
-              ))}
-            </Cartao>
-          )}
+          {/* Endereços (com gerenciamento completo) */}
+          <Cartao>
+            <GerenciadorEnderecos clienteId={id} />
+          </Cartao>
 
           {/* Ações rápidas */}
           <Cartao>
@@ -260,6 +252,36 @@ export default function ClienteDetalhe() {
           <div className="flex gap-2 justify-end mt-2">
             <Botao variante="secundario" onClick={() => setEditandoRota(false)}>Cancelar</Botao>
             <Botao onClick={transferirRota} loading={transferindo} disabled={!novaRotaId}>Transferir</Botao>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de edição do cliente */}
+      <Modal aberto={editando} aoFechar={() => setEditando(false)} titulo="Editar cliente">
+        <div className="flex flex-col gap-3">
+          <Campo label="Nome / Razão social" value={editNome} onChange={(e) => setEditNome(e.target.value)} />
+          <Select label="Rota" value={editRotaId} onChange={(e) => setEditRotaId(e.target.value)}>
+            <option value="">Selecione…</option>
+            {(rotas ?? []).map((r: any) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+          </Select>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="text-suave font-medium">Observações</span>
+            <textarea value={editObs} onChange={(e) => setEditObs(e.target.value)}
+              className="border border-borda rounded-xl px-3 py-2 bg-white resize-y min-h-[60px] text-sm" placeholder="Observações sobre o cliente..." />
+          </label>
+          <div className="flex gap-2 justify-end mt-2">
+            <Botao variante="secundario" onClick={() => setEditando(false)}>Cancelar</Botao>
+            <Botao onClick={async () => {
+              setSalvando(true);
+              try {
+                await api.patch(`/clientes/${id}`, { nome: editNome, rotaId: editRotaId, observacoes: editObs || null, version: c.version });
+                toast('Cliente atualizado!', 'sucesso');
+                setEditando(false);
+                mutate();
+                revalidar('/clientes');
+              } catch (e: any) { toast(e.message, 'erro'); }
+              finally { setSalvando(false); }
+            }} loading={salvando}>Salvar</Botao>
           </div>
         </div>
       </Modal>

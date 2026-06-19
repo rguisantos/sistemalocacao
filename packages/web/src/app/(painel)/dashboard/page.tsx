@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pi
 import { useApi } from '@/lib/swr';
 import { useApi as useRotas } from '@/lib/swr';
 import { formatarBRL } from '@/lib/format';
-import { KpiCard, Cartao, Select, SkeletonCard, Badge, Tabela, Header } from '@/components/ui/primitives';
+import { KpiCard, Cartao, Select, SkeletonCard, Badge, Tabela, Header, Botao } from '@/components/ui/primitives';
 import { DollarSign, Users, Package, AlertTriangle, TrendingUp, TrendingDown, Receipt } from 'lucide-react';
 
 const CORES_PIE = ['#C08A2D', '#11392B', '#1C5340', '#B4452F', '#6B7B72'];
@@ -33,7 +33,7 @@ export default function Dashboard() {
   const [ate, setAte] = useState(hoje);
   const [rotaId, setRotaId] = useState('');
 
-  const { data: d, isLoading } = useApi<DashboardData>(`/relatorios/dashboard?de=${de}&ate=${ate}${rotaId ? `&rotaId=${rotaId}` : ''}`);
+  const { data: d, isLoading, error } = useApi<DashboardData>(`/relatorios/dashboard?de=${de}&ate=${ate}${rotaId ? `&rotaId=${rotaId}` : ''}`);
   const { data: rotas } = useRotas<{ id: string; nome: string }[]>('/rotas');
 
   const periodoLabel = useMemo(() => {
@@ -41,6 +41,19 @@ export default function Dashboard() {
     const d2 = new Date(ate + 'T12:00:00');
     return `${d1.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })} — ${d2.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' })}`;
   }, [de, ate]);
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Header titulo="Painel" subtitulo={periodoLabel} />
+        <Cartao className="p-8 text-center">
+          <p className="text-alerta font-medium mb-2">Erro ao carregar dados do painel</p>
+          <p className="text-suave text-sm mb-4">{error.message || 'Verifique suas permissões e tente novamente.'}</p>
+          <Botao variante="secundario" onClick={() => window.location.reload()}>Tentar novamente</Botao>
+        </Cartao>
+      </div>
+    );
+  }
 
   if (isLoading || !d) {
     return (

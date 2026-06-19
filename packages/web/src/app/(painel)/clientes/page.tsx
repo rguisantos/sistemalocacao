@@ -36,7 +36,7 @@ export default function Clientes() {
     return true;
   });
 
-  function novo() { setEditando({ tipo: 'PF', endereco: {} }); }
+  function novo() { setEditando({ tipo: 'PF' }); }
 
   async function salvar() {
     setErro(''); setSalvando(true);
@@ -169,40 +169,52 @@ export default function Clientes() {
               </div>
             ) : (
               <div className="border-t border-borda pt-3 flex flex-col gap-3">
-                <p className="text-suave font-medium text-sm">Endereço</p>
-                <div className="flex gap-2 items-end">
-                  <Campo label="CEP" value={mascararCep(editando.endereco?.cep ?? '')} onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, '');
-                    setEnd('cep', raw);
-                    if (raw.length === 8) {
-                      buscarCep(raw).then((result) => {
-                        if (result) {
-                          setEditando((prev: any) => ({
-                            ...prev,
-                            endereco: { ...(prev.endereco ?? {}), ...result },
-                          }));
-                          toast('Endereço preenchido automaticamente!', 'info');
+                <div className="flex items-center justify-between">
+                  <p className="text-suave font-medium text-sm">Endereço principal</p>
+                  {!editando.endereco?.logradouro && !editando.endereco?.cep && (
+                    <Botao variante="fantasma" tamanho="sm" icon={Plus} onClick={() => setEditando({ ...editando, endereco: { ...(editando.endereco ?? {}) } })}>
+                      Adicionar endereço
+                    </Botao>
+                  )}
+                </div>
+                {(editando.endereco?.logradouro !== undefined || editando.endereco?.cep !== undefined || Object.keys(editando.endereco ?? {}).length > 0) && (
+                  <>
+                    <div className="flex gap-2 items-end">
+                      <Campo label="CEP" value={mascararCep(editando.endereco?.cep ?? '')} onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '');
+                        setEnd('cep', raw);
+                        if (raw.length === 8) {
+                          buscarCep(raw).then((result) => {
+                            if (result) {
+                              setEditando((prev: any) => ({
+                                ...prev,
+                                endereco: { ...(prev.endereco ?? {}), ...result },
+                              }));
+                              toast('Endereço preenchido automaticamente!', 'info');
+                            }
+                          });
                         }
-                      });
-                    }
-                  }} className="sm:w-40" />
-                  <Botao variante="fantasma" tamanho="sm" onClick={async () => {
-                    const result = await buscarCep(editando.endereco?.cep ?? '');
-                    if (result) {
-                      setEditando((prev: any) => ({ ...prev, endereco: { ...(prev.endereco ?? {}), ...result } }));
-                      toast('Endereço preenchido!', 'info');
-                    } else { toast('CEP não encontrado', 'aviso'); }
-                  }}>Buscar</Botao>
-                </div>
-                <Campo label="Logradouro" value={editando.endereco?.logradouro ?? ''} onChange={(e) => setEnd('logradouro', e.target.value)} />
-                <div className="grid grid-cols-2 gap-3">
-                  <Campo label="Número" value={editando.endereco?.numero ?? ''} onChange={(e) => setEnd('numero', e.target.value)} />
-                  <Campo label="Bairro" value={editando.endereco?.bairro ?? ''} onChange={(e) => setEnd('bairro', e.target.value)} />
-                  <Campo label="Cidade" value={editando.endereco?.cidade ?? ''} onChange={(e) => setEnd('cidade', e.target.value)} />
-                  <Campo label="UF" maxLength={2} value={editando.endereco?.estado ?? ''} onChange={(e) => setEnd('estado', e.target.value.toUpperCase())} />
-                </div>
-                <Campo label="Complemento" value={editando.endereco?.complemento ?? ''} onChange={(e) => setEnd('complemento', e.target.value)} />
-                <MapaSeletor latitude={editando.endereco?.latitude} longitude={editando.endereco?.longitude} onChange={(lat, lng) => setEditando({ ...editando, endereco: { ...(editando.endereco ?? {}), latitude: lat, longitude: lng } })} />
+                      }} className="sm:w-40" />
+                      <Botao variante="fantasma" tamanho="sm" onClick={async () => {
+                        const result = await buscarCep(editando.endereco?.cep ?? '');
+                        if (result) {
+                          setEditando((prev: any) => ({ ...prev, endereco: { ...(prev.endereco ?? {}), ...result } }));
+                          toast('Endereço preenchido!', 'info');
+                        } else { toast('CEP não encontrado', 'aviso'); }
+                      }}>Buscar CEP</Botao>
+                    </div>
+                    <Campo label="Logradouro" value={editando.endereco?.logradouro ?? ''} onChange={(e) => setEnd('logradouro', e.target.value)} />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Campo label="Número" value={editando.endereco?.numero ?? ''} onChange={(e) => setEnd('numero', e.target.value)} />
+                      <Campo label="Bairro" value={editando.endereco?.bairro ?? ''} onChange={(e) => setEnd('bairro', e.target.value)} />
+                      <Campo label="Cidade" value={editando.endereco?.cidade ?? ''} onChange={(e) => setEnd('cidade', e.target.value)} />
+                      <Campo label="UF" maxLength={2} value={editando.endereco?.estado ?? ''} onChange={(e) => setEnd('estado', e.target.value.toUpperCase())} />
+                    </div>
+                    <Campo label="Complemento" value={editando.endereco?.complemento ?? ''} onChange={(e) => setEnd('complemento', e.target.value)} />
+                    <MapaSeletor latitude={editando.endereco?.latitude} longitude={editando.endereco?.longitude} onChange={(lat, lng) => setEditando({ ...editando, endereco: { ...(editando.endereco ?? {}), latitude: lat, longitude: lng } })} />
+                    <p className="text-xs text-suave">💡 Após criar o cliente, use &quot;Adicionar endereço&quot; na página de detalhe para cadastrar mais endereços.</p>
+                  </>
+                )}
               </div>
             )}
 
