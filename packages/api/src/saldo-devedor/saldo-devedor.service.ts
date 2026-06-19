@@ -1,10 +1,18 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { recalcularSaldoLocacao } from '@app/core/server';
 import { PrismaService } from '../prisma/prisma.service';
 import { SaldoService } from '../cobrancas/saldo.service';
 import { AuditoriaService } from '../comum/auditoria/auditoria.service';
 import { UsuarioRequisicao } from '../comum/decorators/usuario-atual.decorator';
 import { PagarSaldoDto } from './dto/pagar-saldo.dto';
+
+interface ListarSaldosFiltros {
+  clienteId?: string;
+  status?: string;
+  pagina?: number;
+  limite?: number;
+}
 
 /**
  * Aba de saldo devedor de locações finalizadas.
@@ -19,11 +27,41 @@ export class SaldoDevedorService {
     private readonly auditoria: AuditoriaService,
   ) {}
 
-  listarPendentesDoCliente(clienteId: string) {
-    return this.prisma.saldoDevedorLocacao.findMany({
-      where: { clienteId, status: 'PENDENTE', valorRestante: { gt: 0 }, deletedAt: null },
-      orderBy: { createdAt: 'asc' },
+  async listar(filtros: ListarSaldosFiltros) {
+    const { clienteId, status, pagina = 1, limite = 20 } = filtros;
+    const where: Prisma.SaldoDevedorLocacaoWhereInput = { deletedAt: null };
+    if (clienteId) where.clienteId = clienteId;
+    if (status) where.status = status as any;
+
+    const [itens, total] = await Promise.all([
+      this.prisma.saldoDevedorLocacao.findMany({
+        where,
+        include: {
+          cliente: { select: { id: true, nome: true, telefones: true } },
+          locacao: { select: { id: true, produto: { select: { plaqueta: true } } } },
+          pagamentos: { where: { deletedAt: null, estornadoPorId: null }, orderBy: { dataPagamento: 'desc' } },
+        },
+        orderBy: { createdAt: 'asc' },
+        skip: (pagina - 1) * limite,
+        take: limite,
+      }),
+      this.prisma.saldoDevedorLocacao.count({ where }),
+    ]);
+
+    return { itens, total, pagina, limite };
+  }
+
+  async obter(id: string) {
+    const saldo = await this.prisma.saldoDevedorLocacao.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        cliente: { select: { id: true, nome: true, telefones: true } },
+        locacao: { select: { id: true, dataInicio: true, dataFim: true, produto: { select: { id: true, plaqueta: true, descricao: true } } } },
+        pagamentos: { where: { deletedAt: null, estornadoPorId: null }, orderBy: { dataPagamento: 'desc' } },
+      },
     });
+    if (!saldo) throw new NotFoundException('Saldo devedor não encontrado.');
+    return saldo;
   }
 
   async pagar(u: UsuarioRequisicao, saldoId: string, dto: PagarSaldoDto, ip?: string) {

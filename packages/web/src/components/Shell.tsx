@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Users, Package, Map, FileText, LogOut, UserCog, Route, Warehouse, Tags, Receipt, FileSignature, ScrollText, Settings, Menu, X, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, Package, Map, FileText, LogOut, UserCog, Route, Warehouse, Tags, Receipt, FileSignature, ScrollText, Settings, Menu, X, Bell, TrendingUp, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import clsx from 'clsx';
 
@@ -11,7 +11,9 @@ const ITENS: { href: string; rotulo: string; icone: typeof LayoutDashboard; perm
   { href: '/clientes', rotulo: 'Clientes', icone: Users, permissao: 'clientes.ler' },
   { href: '/produtos', rotulo: 'Produtos', icone: Package, permissao: 'produtos.ler' },
   { href: '/locacoes', rotulo: 'Locações', icone: FileSignature, permissao: 'locacoes.ler' },
-  { href: '/cobrancas', rotulo: 'Cobrança', icone: Receipt, permissao: 'cobrancas.ler' },
+  { href: '/cobrancas', rotulo: 'Cobranças', icone: Receipt, permissao: 'cobrancas.ler' },
+  { href: '/financeiro', rotulo: 'Financeiro', icone: TrendingUp, permissao: 'cobrancas.ler' },
+  { href: '/saldos-devedores', rotulo: 'Saldos Devedores', icone: AlertTriangle, permissao: 'cobrancas.ler' },
   { href: '/usuarios', rotulo: 'Usuários', icone: UserCog, permissao: 'admin.usuarios.ler' },
   { href: '/rotas', rotulo: 'Rotas', icone: Route, permissao: 'rotas.ler' },
   { href: '/depositos', rotulo: 'Depósitos', icone: Warehouse, permissao: 'depositos.ler' },

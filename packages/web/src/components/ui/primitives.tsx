@@ -67,8 +67,8 @@ export function Checkbox({ label, className, ...p }: { label?: string; className
 }
 
 /* ─── CARTÃO ─── */
-export function Cartao({ children, className, hover }: { children: ReactNode; className?: string; hover?: boolean }) {
-  return <div className={clsx('bg-white border border-borda rounded-xl p-5', hover && 'hover:shadow-md transition-shadow', className)}>{children}</div>;
+export function Cartao({ children, className, hover, ...p }: { children: ReactNode; className?: string; hover?: boolean } & React.HTMLAttributes<HTMLDivElement>) {
+  return <div {...p} className={clsx('bg-white border border-borda rounded-xl p-5', hover && 'hover:shadow-md transition-shadow', className)}>{children}</div>;
 }
 
 /* ─── TABELA ─── */
@@ -276,15 +276,26 @@ export function EmptyState({ icone, titulo, descricao, acao }: { icone?: ReactNo
 }
 
 /* ─── KPI CARD ─── */
-export function KpiCard({ titulo, valor, tendencia, icone: Icon, cor = 'feltro' }: {
-  titulo: string; valor: string; tendencia?: { valor: number; positivo: boolean }; icone?: React.ComponentType<any>; cor?: string;
+export function KpiCard({ titulo, label, valor, tendencia, subtitulo, icone: Icon, cor = 'feltro' }: {
+  titulo?: string; label?: string; valor: string; tendencia?: { valor: number; positivo: boolean }; subtitulo?: string; icone?: React.ComponentType<any>; cor?: string;
 }) {
-  const cores: Record<string, string> = { feltro: 'bg-feltro/5 text-feltro', latao: 'bg-latao/10 text-latao', alerta: 'bg-alerta/10 text-alerta' };
+  const textoLabel = label ?? titulo ?? '';
+  const coresIcon: Record<string, string> = {
+    feltro: 'bg-feltro/5 text-feltro', latao: 'bg-latao/10 text-latao', alerta: 'bg-alerta/10 text-alerta',
+    amber: 'bg-amber-50 text-amber-600', blue: 'bg-blue-50 text-blue-600', emerald: 'bg-emerald-50 text-emerald-600',
+    violet: 'bg-violet-50 text-violet-600', rose: 'bg-rose-50 text-rose-600',
+  };
+  const coresTexto: Record<string, string> = {
+    feltro: 'text-tinta', latao: 'text-latao', alerta: 'text-alerta',
+    amber: 'text-amber-700', blue: 'text-blue-700', emerald: 'text-emerald-700',
+    violet: 'text-violet-700', rose: 'text-rose-700',
+  };
   return (
     <Cartao className="flex items-start justify-between">
       <div>
-        <p className="text-suave text-sm">{titulo}</p>
-        <p className={clsx('text-2xl font-semibold mt-1', cor === 'latao' ? 'text-latao' : cor === 'alerta' ? 'text-alerta' : 'text-tinta')}>{valor}</p>
+        <p className="text-suave text-sm">{textoLabel}</p>
+        <p className={clsx('text-2xl font-semibold mt-1', coresTexto[cor] || 'text-tinta')}>{valor}</p>
+        {subtitulo && <p className="text-xs text-suave mt-1">{subtitulo}</p>}
         {tendencia && (
           <p className={clsx('text-xs mt-1 flex items-center gap-1', tendencia.positivo ? 'text-emerald-600' : 'text-alerta')}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d={tendencia.positivo ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'}/></svg>
@@ -292,7 +303,7 @@ export function KpiCard({ titulo, valor, tendencia, icone: Icon, cor = 'feltro' 
           </p>
         )}
       </div>
-      {Icon && <div className={clsx('p-3 rounded-xl', cores[cor] || cores.feltro)}><Icon size={20} /></div>}
+      {Icon && <div className={clsx('p-3 rounded-xl', coresIcon[cor] || coresIcon.feltro)}><Icon size={20} /></div>}
     </Cartao>
   );
 }
