@@ -53,16 +53,58 @@ export class ClientesService {
   }
 
   async obter(u: UsuarioRequisicao, id: string) {
-    const cliente = await this.prisma.cliente.findFirst({ where: { id, deletedAt: null } });
+    const cliente = await this.prisma.cliente.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        enderecos: { where: { deletedAt: null } },
+        rota: { select: { id: true, nome: true } },
+        locacoes: {
+          where: { status: 'ATIVA', deletedAt: null },
+          select: {
+            id: true, regra: true, status: true, dataInicio: true, saldoDevedorAtual: true,
+            produto: { select: { id: true, plaqueta: true, descricao: true } },
+            endereco: { select: { logradouro: true, numero: true, bairro: true } },
+          },
+          orderBy: { dataInicio: 'desc' },
+        },
+        saldos: {
+          where: { status: 'PENDENTE', deletedAt: null },
+          select: { id: true, valorOriginal: true, valorRestante: true, produtoDescricao: true, status: true },
+        },
+      },
+    });
     if (!cliente) throw new NotFoundException('Cliente não encontrado.');
     if (!this.podeVerTodas(u)) {
       const rotas = await this.rotasDoUsuario(u.id);
       if (!rotas.includes(cliente.rotaId)) {
-        // Anti-IDOR: não vaza nem a existência do registro de outra rota.
         throw new NotFoundException('Cliente não encontrado.');
       }
     }
-    return cliente;
+    // Resumo financeiro
+    const locacoesAtivas = cliente.locacoes.length;
+    const saldoDevedorLocacoes = cliente.locacoes.reduce((s, l) => s + Number(l.saldoDevedorAtual), 0);
+    const saldoDevedorFinalizados = cliente.saldos.reduce((s, d) => s + Number(d.valorRestante), 0);
+    const totalSaldoDevedor = saldoDevedorLocacoes + saldoDevedorFinalizados;
+
+    // Últimas cobranças
+    const cobrancas = await this.prisma.cobranca.findMany({
+      where: { locacao: { clienteId: id }, deletedAt: null },
+      orderBy: { dataCobranca: 'desc' },
+      take: 10,
+      select: {
+        id: true, dataCobranca: true, statusPagamento: true, valorLiquidoFinal: true,
+        locacao: { select: { produto: { select: { plaqueta: true } } } },
+      },
+    });
+
+    return {
+      ...cliente,
+      resumoFinanceiro: { locacoesAtivas, saldoDevedorLocacoes, saldoDevedorFinalizados, totalSaldoDevedor },
+      cobrancasRecentes: cobrancas.map((c) => ({
+        id: c.id, data: c.dataCobranca, status: c.statusPagamento,
+        valor: Number(c.valorLiquidoFinal), produto: c.locacao.produto.plaqueta,
+      })),
+    };
   }
 
   async criar(u: UsuarioRequisicao, dto: CriarClienteDto, ip?: string) {

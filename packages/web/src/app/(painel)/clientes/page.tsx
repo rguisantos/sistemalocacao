@@ -1,10 +1,12 @@
 'use client';
 import { useState } from 'react';
-import { Plus, Pencil, Trash2, Users, Search } from 'lucide-react';
+import Link from 'next/link';
+import { Plus, Pencil, Trash2, Users, Search, Download, Eye } from 'lucide-react';
 import { useApi, useApiMutation, revalidar } from '@/lib/swr';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { mascararCpfCnpj } from '@/lib/masks';
+import { mascararCpfCnpj, mascararCep } from '@/lib/masks';
+import { buscarCep } from '@/lib/cep';
 import { Botao, Campo, Select, Modal, ConfirmModal, Tabela, Badge, SearchInput, Header, SkeletonTable, toast } from '@/components/ui/primitives';
 import { MapaSeletor } from '@/components/MapaSeletor';
 import { GerenciadorEnderecos } from '@/components/GerenciadorEnderecos';
@@ -69,10 +71,26 @@ export default function Clientes() {
   const nomeRota = (id: string) => rotas?.find((r) => r.id === id)?.nome ?? '—';
   const setEnd = (campo: string, valor: any) => setEditando({ ...editando, endereco: { ...(editando.endereco ?? {}), [campo]: valor } });
 
+  function exportarCSV() {
+    if (!clientesFiltrados.length) return;
+    const headers = ['Nome', 'CPF/CNPJ', 'Rota', 'Status'];
+    const rows = clientesFiltrados.map((c) => [c.nome, c.cpfCnpj, nomeRota(c.rotaId), c.ativo !== false ? 'Ativo' : 'Inativo']);
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+    const bom = '\uFEFF';
+    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'clientes.csv'; a.click();
+    URL.revokeObjectURL(url);
+    toast('CSV exportado!', 'sucesso');
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <Header titulo="Clientes" subtitulo={`${clientesFiltrados.length} cliente${clientesFiltrados.length !== 1 ? 's' : ''}`}
-        acoes={pode('clientes.criar') ? <Botao onClick={novo} icon={Plus}>Novo cliente</Botao> : undefined}
+        acoes={<div className="flex gap-2">
+          {pode('clientes.criar') && <Botao onClick={novo} icon={Plus}>Novo cliente</Botao>}
+          <Botao variante="secundario" tamanho="sm" icon={Download} onClick={exportarCSV}>CSV</Botao>
+        </div>}
       />
 
       {/* Filtros */}
@@ -92,12 +110,15 @@ export default function Clientes() {
             <Tabela colunas={['Nome', 'CPF/CNPJ', 'Rota', 'Status', '']} vazio="Nenhum cliente encontrado.">
               {clientesFiltrados.map((c) => (
                 <tr key={c.id} className="hover:bg-papel/50 transition">
-                  <td className="px-4 py-3 font-medium">{c.nome}</td>
+                  <td className="px-4 py-3">
+                    <Link href={`/clientes/${c.id}`} className="font-medium text-feltro hover:text-latao transition">{c.nome}</Link>
+                  </td>
                   <td className="px-4 py-3 valor">{mascararCpfCnpj(c.cpfCnpj || '')}</td>
                   <td className="px-4 py-3">{nomeRota(c.rotaId)}</td>
                   <td className="px-4 py-3"><Badge var={c.ativo !== false ? 'verde' : 'cinza'}>{c.ativo !== false ? 'Ativo' : 'Inativo'}</Badge></td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex gap-2 justify-end">
+                    <div className="flex gap-1 justify-end">
+                      <Link href={`/clientes/${c.id}`} className="text-suave hover:text-feltro transition p-1" title="Ver detalhes"><Eye size={16} /></Link>
                       {pode('clientes.editar') && <button onClick={() => setEditando({ ...c })} className="text-suave hover:text-feltro transition p-1"><Pencil size={16} /></button>}
                       {pode('clientes.excluir') && <button onClick={() => setExcluindo(c)} className="text-suave hover:text-alerta transition p-1"><Trash2 size={16} /></button>}
                     </div>
@@ -113,16 +134,15 @@ export default function Clientes() {
               <div className="text-center text-suave py-12">Nenhum cliente encontrado.</div>
             )}
             {clientesFiltrados.map((c) => (
-              <div key={c.id} className="bg-white border border-borda rounded-xl p-4 flex items-center justify-between">
+              <Link key={c.id} href={`/clientes/${c.id}`} className="bg-white border border-borda rounded-xl p-4 flex items-center justify-between hover:shadow-md transition block">
                 <div>
                   <p className="font-medium">{c.nome}</p>
                   <p className="text-suave text-sm">{nomeRota(c.rotaId)} • {mascararCpfCnpj(c.cpfCnpj || '')}</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                   <Badge var={c.ativo !== false ? 'verde' : 'cinza'}>{c.ativo !== false ? 'Ativo' : 'Inativo'}</Badge>
-                  {pode('clientes.editar') && <button onClick={() => setEditando({ ...c })} className="text-suave hover:text-feltro p-1"><Pencil size={16} /></button>}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </>
@@ -150,18 +170,50 @@ export default function Clientes() {
             ) : (
               <div className="border-t border-borda pt-3 flex flex-col gap-3">
                 <p className="text-suave font-medium text-sm">Endereço</p>
+                <div className="flex gap-2 items-end">
+                  <Campo label="CEP" value={mascararCep(editando.endereco?.cep ?? '')} onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setEnd('cep', raw);
+                    if (raw.length === 8) {
+                      buscarCep(raw).then((result) => {
+                        if (result) {
+                          setEditando((prev: any) => ({
+                            ...prev,
+                            endereco: { ...(prev.endereco ?? {}), ...result },
+                          }));
+                          toast('Endereço preenchido automaticamente!', 'info');
+                        }
+                      });
+                    }
+                  }} className="sm:w-40" />
+                  <Botao variante="fantasma" tamanho="sm" onClick={async () => {
+                    const result = await buscarCep(editando.endereco?.cep ?? '');
+                    if (result) {
+                      setEditando((prev: any) => ({ ...prev, endereco: { ...(prev.endereco ?? {}), ...result } }));
+                      toast('Endereço preenchido!', 'info');
+                    } else { toast('CEP não encontrado', 'aviso'); }
+                  }}>Buscar</Botao>
+                </div>
                 <Campo label="Logradouro" value={editando.endereco?.logradouro ?? ''} onChange={(e) => setEnd('logradouro', e.target.value)} />
                 <div className="grid grid-cols-2 gap-3">
                   <Campo label="Número" value={editando.endereco?.numero ?? ''} onChange={(e) => setEnd('numero', e.target.value)} />
                   <Campo label="Bairro" value={editando.endereco?.bairro ?? ''} onChange={(e) => setEnd('bairro', e.target.value)} />
                   <Campo label="Cidade" value={editando.endereco?.cidade ?? ''} onChange={(e) => setEnd('cidade', e.target.value)} />
                   <Campo label="UF" maxLength={2} value={editando.endereco?.estado ?? ''} onChange={(e) => setEnd('estado', e.target.value.toUpperCase())} />
-                  <Campo label="CEP" value={editando.endereco?.cep ?? ''} onChange={(e) => setEnd('cep', e.target.value)} />
-                  <Campo label="Complemento" value={editando.endereco?.complemento ?? ''} onChange={(e) => setEnd('complemento', e.target.value)} />
                 </div>
+                <Campo label="Complemento" value={editando.endereco?.complemento ?? ''} onChange={(e) => setEnd('complemento', e.target.value)} />
                 <MapaSeletor latitude={editando.endereco?.latitude} longitude={editando.endereco?.longitude} onChange={(lat, lng) => setEditando({ ...editando, endereco: { ...(editando.endereco ?? {}), latitude: lat, longitude: lng } })} />
               </div>
             )}
+
+            {/* Observações */}
+            <div className="border-t border-borda pt-3">
+              <label className="flex flex-col gap-1.5 text-sm">
+                <span className="text-suave font-medium">Observações</span>
+                <textarea value={editando.observacoes ?? ''} onChange={(e) => setEditando({ ...editando, observacoes: e.target.value })}
+                  className="border border-borda rounded-xl px-3 py-2 bg-white resize-y min-h-[60px] text-sm" placeholder="Observações sobre o cliente..." />
+              </label>
+            </div>
 
             {erro && <p className="text-alerta text-sm">{erro}</p>}
             <div className="flex gap-2 justify-end mt-2 pt-3 border-t border-borda">
