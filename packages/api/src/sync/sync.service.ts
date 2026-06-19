@@ -33,31 +33,41 @@ export class SyncService {
   // -------------------------------------------------------------------------
   // PULL — inclui tombstones (deletedAt != null) e usa o relógio do servidor.
   // Escopo por rota do usuário (anti-IDOR + tamanho de payload).
+  // Admin com 'clientes.ler_todas_rotas' vê tudo (bypass de rota).
   // -------------------------------------------------------------------------
   async pull(u: UsuarioRequisicao, lastPulledAt: string | null, fullSync = false) {
-    const rotas = await this.rotasDoUsuario(u.id);
+    const rotasDoUsuario = await this.rotasDoUsuario(u.id);
+    const veTodas = u.permissoes.includes('clientes.ler_todas_rotas');
     const desde = !fullSync && lastPulledAt ? new Date(lastPulledAt) : null;
     const recente = desde ? { updatedAt: { gt: desde } } : {};
-    const porRota = { in: rotas };
 
     // filtros de escopo por entidade (relation filters do Prisma)
-    const escopo: Partial<Record<Entidade, any>> = {
-      rota: { id: porRota },
-      cliente: { rotaId: porRota },
-      endereco: { cliente: { rotaId: porRota } },
-      locacao: { cliente: { rotaId: porRota } },
-      cobranca: { locacao: { cliente: { rotaId: porRota } } },
-      pagamento: { OR: [
-        { cobranca: { locacao: { cliente: { rotaId: porRota } } } },
-        { saldo: { cliente: { rotaId: porRota } } },
-      ] },
-      saldoDevedorLocacao: { cliente: { rotaId: porRota } },
-      produto: { locacoes: { some: { cliente: { rotaId: porRota } } } },
-      manutencao: { produto: { locacoes: { some: { cliente: { rotaId: porRota } } } } },
-      // cadastros globais pequenos: enviados por completo
-      tipoProduto: {}, tamanho: {}, condicao: {}, deposito: {},
-      usuario: { id: u.id }, // só o próprio
-    };
+    const escopo: Partial<Record<Entidade, any>> = veTodas
+      ? {
+          // Admin: sem filtro de rota — vê tudo
+          rota: {}, cliente: {}, endereco: {}, locacao: {},
+          cobranca: {}, pagamento: {},
+          saldoDevedorLocacao: {}, produto: {}, manutencao: {},
+          tipoProduto: {}, tamanho: {}, condicao: {}, deposito: {},
+          usuario: { id: u.id }, // só o próprio (não vaza credenciais)
+        }
+      : {
+          // Cobrador: escopado por rota
+          rota: { id: { in: rotasDoUsuario } },
+          cliente: { rotaId: { in: rotasDoUsuario } },
+          endereco: { cliente: { rotaId: { in: rotasDoUsuario } } },
+          locacao: { cliente: { rotaId: { in: rotasDoUsuario } } },
+          cobranca: { locacao: { cliente: { rotaId: { in: rotasDoUsuario } } } },
+          pagamento: { OR: [
+            { cobranca: { locacao: { cliente: { rotaId: { in: rotasDoUsuario } } } } },
+            { saldo: { cliente: { rotaId: { in: rotasDoUsuario } } } },
+          ] },
+          saldoDevedorLocacao: { cliente: { rotaId: { in: rotasDoUsuario } } },
+          produto: { locacoes: { some: { cliente: { rotaId: { in: rotasDoUsuario } } } } },
+          manutencao: { produto: { locacoes: { some: { cliente: { rotaId: { in: rotasDoUsuario } } } } } },
+          tipoProduto: {}, tamanho: {}, condicao: {}, deposito: {},
+          usuario: { id: u.id },
+        };
 
     const mudancas: Partial<Record<Entidade, any[]>> = {};
     for (const ent of ENTIDADES) {
