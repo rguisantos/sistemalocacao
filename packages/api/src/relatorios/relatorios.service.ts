@@ -9,6 +9,12 @@ export class RelatoriosService {
 
   private inicioDoMes(): Date { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1); }
 
+  /** Wrapper seguro para somar() — retorna 0 se não houver valores. */
+  private somarSeguro(...valores: string[]): string {
+    if (valores.length === 0) return '0';
+    return somar(...valores).toFixed(2);
+  }
+
   async dashboard(de?: Date, ate?: Date, rotaId?: string) {
     const desde = de ?? this.inicioDoMes();
     const ateDate = ate ?? new Date();
@@ -21,7 +27,7 @@ export class RelatoriosService {
       where: wherePag,
       select: { valor: true },
     });
-    const faturamentoMes = somar(...pagamentosMes.map((p) => p.valor.toString())).toFixed(2);
+    const faturamentoMes = this.somarSeguro(...pagamentosMes.map((p) => p.valor.toString()));
 
     // Faturamento do período anterior (mesmo intervalo, deslocado)
     const diff = ateDate.getTime() - desde.getTime();
@@ -29,7 +35,7 @@ export class RelatoriosService {
     const wherePagAnt: any = { deletedAt: null, estornadoPorId: null, dataPagamento: { gte: inicioAnterior, lt: desde } };
     if (rotaId) wherePagAnt.cobranca = { locacao: { cliente: { rotaId } } };
     const pagAnterior = await this.prisma.pagamento.findMany({ where: wherePagAnt, select: { valor: true } });
-    const faturamentoAnterior = somar(...pagAnterior.map((p) => p.valor.toString())).toFixed(2);
+    const faturamentoAnterior = this.somarSeguro(...pagAnterior.map((p) => p.valor.toString()));
     const variacao = Number(faturamentoAnterior) > 0
       ? ((Number(faturamentoMes) - Number(faturamentoAnterior)) / Number(faturamentoAnterior) * 100).toFixed(1)
       : 0;
@@ -46,10 +52,10 @@ export class RelatoriosService {
     const saldosPendentes = await this.prisma.saldoDevedorLocacao.findMany({
       where: whereSaldo, select: { valorRestante: true },
     });
-    const inadimplencia = somar(
+    const inadimplencia = this.somarSeguro(
       ...locacoesComSaldo.map((l) => l.saldoDevedorAtual.toString()),
       ...saldosPendentes.map((s) => s.valorRestante.toString()),
-    ).toFixed(2);
+    );
 
     // Contagens
     const whereCliente: any = { ativo: true, deletedAt: null };
@@ -99,12 +105,12 @@ export class RelatoriosService {
       cobrancasAtrasadas,
       porRota: porRota.map((r) => ({ rota: r.rota, valor: Number(r.valor) })),
       faturamentoMensal,
-      statusDistribuicao: statusDist.map((s) => ({ status: s.statusPagamento, total: s._count.id })),
+      statusDistribuicao: statusDist.map((s) => ({ status: s.statusPagamento, total: (s._count as any).id ?? s._count })),
       topClientes,
       cobrancasRecentes: cobrancasRecentes.map((c) => ({
         id: c.id,
-        cliente: c.locacao.cliente.nome,
-        produto: c.locacao.produto.plaqueta,
+        cliente: c.locacao?.cliente?.nome ?? '—',
+        produto: c.locacao?.produto?.plaqueta ?? '—',
         valor: Number(c.valorLiquidoFinal),
         status: c.statusPagamento,
         data: c.dataCobranca,
@@ -114,7 +120,7 @@ export class RelatoriosService {
 
   /** Faturamento (pagamentos) por rota no período. */
   async faturamentoPorRota(de: Date, ate: Date, rotaId?: string) {
-    const where: any = { deletedAt: null, estornadoPorId: null, dataPagamento: { gte: de, lte: ate } };
+    const where: any = { deletedAt: null, estornadoPorId: null, cobrancaId: { not: null }, dataPagamento: { gte: de, lte: ate } };
     if (rotaId) where.cobranca = { locacao: { cliente: { rotaId } } };
     const pagamentos = await this.prisma.pagamento.findMany({
       where,
@@ -123,9 +129,11 @@ export class RelatoriosService {
     const mapa = new Map<string, string[]>();
     for (const p of pagamentos) {
       const rota = p.cobranca?.locacao?.cliente?.rota?.nome ?? 'Sem rota';
-      (mapa.get(rota) ?? mapa.set(rota, []).get(rota)!).push(p.valor.toString());
+      const arr = mapa.get(rota) ?? [];
+      arr.push(p.valor.toString());
+      mapa.set(rota, arr);
     }
-    return [...mapa.entries()].map(([rota, valores]) => ({ rota, valor: somar(...valores).toFixed(2) }));
+    return [...mapa.entries()].map(([rota, valores]) => ({ rota, valor: this.somarSeguro(...valores) }));
   }
 
   /** Faturamento agrupado por mês (últimos N meses). */
@@ -138,7 +146,7 @@ export class RelatoriosService {
       const where: any = { deletedAt: null, estornadoPorId: null, dataPagamento: { gte: inicio, lte: fim } };
       if (rotaId) where.cobranca = { locacao: { cliente: { rotaId } } };
       const pags = await this.prisma.pagamento.findMany({ where, select: { valor: true } });
-      const total = pags.length > 0 ? Number(somar(...pags.map((p) => p.valor.toString())).toFixed(2)) : 0;
+      const total = pags.length > 0 ? Number(this.somarSeguro(...pags.map((p) => p.valor.toString()))) : 0;
       resultado.push({
         mes: inicio.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }),
         valor: total,
@@ -149,7 +157,7 @@ export class RelatoriosService {
 
   /** Top 5 clientes por faturamento no período. */
   async topClientesPorFaturamento(de: Date, ate: Date, rotaId?: string) {
-    const where: any = { deletedAt: null, estornadoPorId: null, dataPagamento: { gte: de, lte: ate } };
+    const where: any = { deletedAt: null, estornadoPorId: null, cobrancaId: { not: null }, dataPagamento: { gte: de, lte: ate } };
     if (rotaId) where.cobranca = { locacao: { cliente: { rotaId } } };
     const pags = await this.prisma.pagamento.findMany({
       where,
@@ -167,7 +175,7 @@ export class RelatoriosService {
       mapa.set(c.id, entry);
     }
     return [...mapa.entries()]
-      .map(([id, v]) => ({ id, nome: v.nome, valor: Number(somar(...v.total).toFixed(2)) }))
+      .map(([id, v]) => ({ id, nome: v.nome, valor: Number(this.somarSeguro(...v.total)) }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 5);
   }
@@ -204,7 +212,7 @@ export class RelatoriosService {
       _count: { id: true },
     });
 
-    return { ativas, finalizadas, porStatus: porRota.map((r) => ({ status: r.status, total: r._count.id })) };
+    return { ativas, finalizadas, porStatus: porRota.map((r) => ({ status: r.status, total: (r._count as any).id ?? r._count })) };
   }
 
   /** Relatório de produtos (locados/disponíveis). */
@@ -222,7 +230,7 @@ export class RelatoriosService {
       total,
       locados,
       disponiveis: total - locados,
-      porTipo: porTipo.map((p) => ({ tipo: tipoMap[p.tipoId] ?? '—', total: p._count.id })),
+      porTipo: porTipo.map((p) => ({ tipo: tipoMap[p.tipoId] ?? '—', total: (p._count as any).id ?? p._count })),
     };
   }
 

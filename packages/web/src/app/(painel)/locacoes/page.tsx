@@ -1,150 +1,250 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useState } from 'react';
+import Link from 'next/link';
+import { Plus, Search, Filter, FileSignature, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { useApi, useApiPaginated, useApiMutation, revalidar } from '@/lib/swr';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatarBRL } from '@/lib/format';
-import { Botao, Campo, Dialogo, Tabela } from '@/components/ui/primitives';
+import { formatarBRL, data as fmtData } from '@/lib/format';
+import {
+  Botao, Campo, Select, Cartao, Header, Badge, Tabela,
+  Paginacao, SkeletonCard, EmptyState, Modal, toast,
+} from '@/components/ui/primitives';
 
-export default function Locacoes() {
+const REGRA_LABEL: Record<string, string> = {
+  VALOR_FIXO: 'Valor Fixo',
+  PERCENTUAL_A_RECEBER: '% a Receber',
+  PERCENTUAL_A_PAGAR: '% a Pagar',
+};
+const STATUS_MAP: Record<string, { cor: 'verde' | 'azul' | 'cinza'; label: string }> = {
+  ATIVA: { cor: 'verde', label: 'Ativa' },
+  FINALIZADA: { cor: 'cinza', label: 'Finalizada' },
+};
+
+export default function LocacoesPage() {
   const { pode } = useAuth();
-  const [clientes, setClientes] = useState<any[]>([]);
   const [clienteId, setClienteId] = useState('');
-  const [locacoes, setLocacoes] = useState<any[]>([]);
-  const [produtos, setProdutos] = useState<any[]>([]);
-  const [enderecos, setEnderecos] = useState<any[]>([]);
-  const [depositos, setDepositos] = useState<any[]>([]);
-  const [nova, setNova] = useState<any | null>(null);
-  const [finalizar, setFinalizar] = useState<any | null>(null);
-  const [endsNovoCliente, setEndsNovoCliente] = useState<any[]>([]);
+  const [statusFiltro, setStatusFiltro] = useState('');
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
+  const [pagina, setPagina] = useState(1);
+
+  // Modal nova locação
+  const [criando, setCriando] = useState(false);
+  const [finalizando, setFinalizando] = useState<any | null>(null);
+  const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
-  useEffect(() => {
-    api.get('/clientes').then(setClientes).catch(() => setClientes([]));
-    api.get('/produtos').then(setProdutos).catch(() => setProdutos([]));
-    api.get('/depositos').then(setDepositos).catch(() => setDepositos([]));
-  }, []);
-  const carregar = () => clienteId && api.get(`/locacoes?clienteId=${clienteId}`).then(setLocacoes).catch(() => setLocacoes([]));
-  useEffect(() => {
-    setLocacoes([]);
-    if (clienteId) { carregar(); api.get(`/enderecos?clienteId=${clienteId}`).then(setEnderecos).catch(() => setEnderecos([])); }
-  }, [clienteId]);
+  const { data: clientes } = useApi<any[]>('/clientes');
+  const { data: produtos } = useApi<any[]>('/produtos');
+  const { data: depositos } = useApi<any[]>('/depositos');
 
-  async function criar() {
-    setErro('');
+  // Endereços do cliente selecionado (para criar locação)
+  const [novoClienteId, setNovoClienteId] = useState('');
+  const { data: enderecos } = useApi<any[]>(novoClienteId ? `/enderecos?clienteId=${novoClienteId}` : null);
+
+  const params = new URLSearchParams();
+  if (clienteId) params.set('clienteId', clienteId);
+  if (statusFiltro) params.set('status', statusFiltro);
+  params.set('pagina', String(pagina));
+  params.set('limite', '15');
+
+  const { data: resultado, isLoading } = useApiPaginated<any>(`/locacoes?${params.toString()}`, pagina, 15);
+  const locacoes = resultado?.itens ?? [];
+  const total = resultado?.total ?? 0;
+
+  async function criarLocacao(dados: any) {
+    setSalvando(true); setErro('');
     try {
-      const base: any = { produtoId: nova.produtoId, clienteId, enderecoId: nova.enderecoId, regra: nova.regra };
-      if (nova.regra === 'VALOR_FIXO') { base.frequencia = nova.frequencia ?? 'MENSAL'; base.valorFixo = Number(nova.valorFixo); }
-      else { base.valorPartida = Number(nova.valorPartida); base.percentual = Number(nova.percentual); }
-      if (nova.contadorInicial) base.contadorInicial = Number(nova.contadorInicial);
+      const base: any = { produtoId: dados.produtoId, clienteId: dados.clienteId, enderecoId: dados.enderecoId, regra: dados.regra };
+      if (dados.regra === 'VALOR_FIXO') { base.frequencia = dados.frequencia ?? 'MENSAL'; base.valorFixo = Number(dados.valorFixo); }
+      else { base.valorPartida = Number(dados.valorPartida); base.percentual = Number(dados.percentual); }
+      if (dados.contadorInicial) base.contadorInicial = Number(dados.contadorInicial);
       await api.post('/locacoes', base);
-      setNova(null); carregar();
-    } catch (e: any) { setErro(e.message); }
+      revalidar('/locacoes');
+      toast('Locação criada!', 'sucesso');
+      setCriando(false);
+    } catch (e: any) { setErro(e.message); toast(e.message, 'erro'); }
+    finally { setSalvando(false); }
   }
-  async function confirmarFinalizacao() {
-    setErro('');
+
+  async function finalizarLocacao() {
+    if (!finalizando) return;
+    setSalvando(true); setErro('');
     try {
-      const corpo: any = { tipo: finalizar.tipo };
-      if (finalizar.tipo === 'DEPOSITO') corpo.depositoId = finalizar.depositoId;
-      else corpo.novaLocacao = { clienteId: finalizar.novoClienteId, enderecoId: finalizar.novoEnderecoId };
-      await api.post(`/locacoes/${finalizar.id}/finalizar`, corpo);
-      setFinalizar(null); carregar();
-    } catch (e: any) { setErro(e.message); }
+      const corpo: any = { tipo: finalizando.tipo };
+      if (finalizando.tipo === 'DEPOSITO') corpo.depositoId = finalizando.depositoId;
+      else corpo.novaLocacao = { clienteId: finalizando.novoClienteId, enderecoId: finalizando.novoEnderecoId };
+      await api.post(`/locacoes/${finalizando.id}/finalizar`, corpo);
+      revalidar('/locacoes');
+      toast('Locação finalizada!', 'sucesso');
+      setFinalizando(null);
+    } catch (e: any) { setErro(e.message); toast(e.message, 'erro'); }
+    finally { setSalvando(false); }
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-2xl font-bold">Locações</h1>
+      <Header titulo="Locações" subtitulo="Gerencie locações de produtos"
+        acoes={pode('locacoes.criar') ? <Botao tamanho="sm" icon={Plus} onClick={() => { setCriando(true); setNovoClienteId(''); }}>Nova locação</Botao> : undefined}
+      />
 
-      <label className="flex flex-col gap-1.5 text-sm max-w-sm">
-        <span className="text-suave font-medium">Cliente</span>
-        <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="border border-borda rounded-xl px-3 py-2 bg-white">
-          <option value="">Selecione…</option>
-          {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-        </select>
-      </label>
+      {/* Filtros */}
+      <div className="flex flex-wrap items-center gap-3">
+        <Select value={clienteId} onChange={(e) => { setClienteId(e.target.value); setPagina(1); }} className="sm:w-48">
+          <option value="">Todos os clientes</option>
+          {(clientes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </Select>
+        <Botao variante="secundario" tamanho="sm" icon={mostrarFiltros ? ChevronUp : ChevronDown} onClick={() => setMostrarFiltros(!mostrarFiltros)}>
+          Filtros
+        </Botao>
+      </div>
+      {mostrarFiltros && (
+        <Cartao className="flex flex-wrap items-end gap-4">
+          <Select label="Status" value={statusFiltro} onChange={(e) => { setStatusFiltro(e.target.value); setPagina(1); }}>
+            <option value="">Todos</option>
+            <option value="ATIVA">Ativa</option>
+            <option value="FINALIZADA">Finalizada</option>
+          </Select>
+          <Botao variante="fantasma" tamanho="sm" onClick={() => { setClienteId(''); setStatusFiltro(''); setPagina(1); }}>Limpar</Botao>
+        </Cartao>
+      )}
 
-      {clienteId && (
+      {/* Tabela */}
+      {isLoading ? (
+        <div className="grid gap-4">{[1, 2, 3].map((i) => <SkeletonCard key={i} />)}</div>
+      ) : locacoes.length === 0 ? (
+        <EmptyState icone={<FileSignature size={48} />} titulo="Nenhuma locação encontrada" descricao="Crie uma nova locação ou ajuste os filtros." />
+      ) : (
         <>
-          <div className="flex justify-end">
-            {pode('locacoes.criar') && <Botao onClick={() => setNova({ regra: 'VALOR_FIXO' })}><Plus size={16} className="inline mr-1" /> Nova locação</Botao>}
+          <div className="hidden md:block overflow-x-auto">
+            <Tabela colunas={['Produto', 'Cliente', 'Regra', 'Início', 'Saldo', 'Status', '']}>
+              {locacoes.map((l: any) => (
+                <tr key={l.id} className="hover:bg-papel/50 transition">
+                  <td className="px-4 py-3 text-sm font-medium">{l.produto?.plaqueta} <span className="text-suave text-xs">{l.produto?.descricao}</span></td>
+                  <td className="px-4 py-3 text-sm">{l.cliente?.nome ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm"><Badge var="azul">{REGRA_LABEL[l.regra] ?? l.regra}</Badge></td>
+                  <td className="px-4 py-3 text-sm text-suave">{fmtData(l.dataInicio)}</td>
+                  <td className="px-4 py-3 text-sm valor">{formatarBRL(l.saldoDevedorAtual)}</td>
+                  <td className="px-4 py-3"><Badge var={(STATUS_MAP[l.status]?.cor ?? 'cinza') as any}>{STATUS_MAP[l.status]?.label ?? l.status}</Badge></td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex gap-1 justify-end">
+                      <Link href={`/locacoes/${l.id}`} className="text-feltro hover:text-latao text-sm transition">Detalhes</Link>
+                      {l.status === 'ATIVA' && pode('locacoes.finalizar_deposito') && (
+                        <button onClick={() => setFinalizando({ id: l.id, tipo: 'DEPOSITO', produto: l.produto?.plaqueta })} className="text-suave hover:text-alerta text-sm transition ml-2">Finalizar</button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </Tabela>
           </div>
-          <Tabela colunas={['Produto', 'Regra', 'Saldo', '']}>
-            {locacoes.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-suave">Sem locações ativas para este cliente.</td></tr>}
-            {locacoes.map((l) => (
-              <tr key={l.id}>
-                <td className="px-4 py-3">{l.produto?.plaqueta} {l.produto?.descricao ?? ''}</td>
-                <td className="px-4 py-3">{l.regra}</td>
-                <td className="px-4 py-3 valor">{formatarBRL(l.saldoDevedorAtual)}</td>
-                <td className="px-4 py-3 text-right">
-                  <button onClick={() => setFinalizar({ id: l.id, tipo: 'DEPOSITO' })} className="text-suave hover:text-alerta text-sm">Finalizar</button>
-                </td>
-              </tr>
+
+          <div className="md:hidden flex flex-col gap-3">
+            {locacoes.map((l: any) => (
+              <Cartao key={l.id} className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">{l.produto?.plaqueta}</span>
+                  <Badge var={(STATUS_MAP[l.status]?.cor ?? 'cinza') as any}>{STATUS_MAP[l.status]?.label ?? l.status}</Badge>
+                </div>
+                <p className="text-xs text-suave">{l.cliente?.nome} • {REGRA_LABEL[l.regra] ?? l.regra}</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-suave">Saldo: <span className="valor font-medium">{formatarBRL(l.saldoDevedorAtual)}</span></span>
+                  <Link href={`/locacoes/${l.id}`} className="text-feltro text-sm">Ver</Link>
+                </div>
+              </Cartao>
             ))}
-          </Tabela>
+          </div>
+
+          <Paginacao pagina={pagina} total={total} limite={15} onChange={setPagina} />
         </>
       )}
-      {erro && <p className="text-alerta text-sm">{erro}</p>}
 
-      {/* Nova locação */}
-      <Dialogo aberto={!!nova} aoFechar={() => setNova(null)} titulo="Nova locação">
-        {nova && (
+      {/* Modal nova locação */}
+      {criando && <ModalNovaLocacao onClose={() => setCriando(false)} onSave={criarLocacao} clientes={clientes ?? []} produtos={produtos ?? []} />}
+
+      {/* Modal finalizar */}
+      {finalizando && (
+        <Modal aberto={true} aoFechar={() => setFinalizando(null)} titulo="Finalizar locação">
           <div className="flex flex-col gap-3">
-            <Selecao label="Produto" value={nova.produtoId} onChange={(v) => setNova({ ...nova, produtoId: v })} opcoes={produtos.map((p) => ({ id: p.id, rotulo: `${p.plaqueta} ${p.descricao ?? ''}` }))} />
-            <Selecao label="Endereço" value={nova.enderecoId} onChange={(v) => setNova({ ...nova, enderecoId: v })} opcoes={enderecos.map((e) => ({ id: e.id, rotulo: e.logradouro }))} />
-            <Selecao label="Regra" value={nova.regra} onChange={(v) => setNova({ ...nova, regra: v })} opcoes={[{ id: 'VALOR_FIXO', rotulo: 'Valor fixo' }, { id: 'PERCENTUAL_A_RECEBER', rotulo: 'Percentual a receber' }, { id: 'PERCENTUAL_A_PAGAR', rotulo: 'Percentual a pagar' }]} />
-            {nova.regra === 'VALOR_FIXO' ? (
-              <>
-                <Selecao label="Frequência" value={nova.frequencia ?? 'MENSAL'} onChange={(v) => setNova({ ...nova, frequencia: v })} opcoes={[{ id: 'SEMANAL', rotulo: 'Semanal' }, { id: 'QUINZENAL', rotulo: 'Quinzenal' }, { id: 'MENSAL', rotulo: 'Mensal' }]} />
-                <Campo label="Valor fixo (R$)" inputMode="decimal" value={nova.valorFixo ?? ''} onChange={(e) => setNova({ ...nova, valorFixo: e.target.value })} />
-              </>
+            <p className="text-sm">Finalizar locação do produto <strong>{finalizando.produto}</strong></p>
+            <Select label="Destino" value={finalizando.tipo} onChange={(e) => setFinalizando({ ...finalizando, tipo: e.target.value })}>
+              <option value="DEPOSITO">Depósito</option>
+              <option value="RELOCACAO">Relocação</option>
+            </Select>
+            {finalizando.tipo === 'DEPOSITO' ? (
+              <Select label="Depósito" value={finalizando.depositoId ?? ''} onChange={(e) => setFinalizando({ ...finalizando, depositoId: e.target.value })}>
+                <option value="">Selecione…</option>
+                {(depositos ?? []).map((d: any) => <option key={d.id} value={d.id}>{d.nome}</option>)}
+              </Select>
             ) : (
               <>
-                <Campo label="Valor por partida (R$)" inputMode="decimal" value={nova.valorPartida ?? ''} onChange={(e) => setNova({ ...nova, valorPartida: e.target.value })} />
-                <Campo label="Percentual (%)" inputMode="decimal" value={nova.percentual ?? ''} onChange={(e) => setNova({ ...nova, percentual: e.target.value })} />
-                <Campo label="Contador inicial" inputMode="numeric" value={nova.contadorInicial ?? ''} onChange={(e) => setNova({ ...nova, contadorInicial: e.target.value })} />
+                <Select label="Novo cliente" value={finalizando.novoClienteId ?? ''} onChange={(e) => setFinalizando({ ...finalizando, novoClienteId: e.target.value, novoEnderecoId: '' })}>
+                  <option value="">Selecione…</option>
+                  {(clientes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </Select>
               </>
             )}
-            <div className="flex gap-2 justify-end mt-2">
-              <Botao variante="secundario" onClick={() => setNova(null)}>Cancelar</Botao>
-              <Botao onClick={criar}>Criar</Botao>
+            {erro && <p className="text-alerta text-sm">{erro}</p>}
+            <div className="flex gap-2 justify-end">
+              <Botao variante="secundario" onClick={() => setFinalizando(null)}>Cancelar</Botao>
+              <Botao variante="perigo" onClick={finalizarLocacao} loading={salvando}>Finalizar</Botao>
             </div>
           </div>
-        )}
-      </Dialogo>
-
-      {/* Finalizar */}
-      <Dialogo aberto={!!finalizar} aoFechar={() => setFinalizar(null)} titulo="Finalizar locação">
-        {finalizar && (
-          <div className="flex flex-col gap-3">
-            <Selecao label="Destino" value={finalizar.tipo} onChange={(v) => setFinalizar({ ...finalizar, tipo: v })} opcoes={[{ id: 'DEPOSITO', rotulo: 'Depósito' }, { id: 'RELOCACAO', rotulo: 'Relocação' }]} />
-            {finalizar.tipo === 'DEPOSITO' ? (
-              <Selecao label="Depósito" value={finalizar.depositoId} onChange={(v) => setFinalizar({ ...finalizar, depositoId: v })} opcoes={depositos.map((d) => ({ id: d.id, rotulo: d.nome }))} />
-            ) : (
-              <>
-                <Selecao label="Novo cliente" value={finalizar.novoClienteId} onChange={(v) => { setFinalizar({ ...finalizar, novoClienteId: v, novoEnderecoId: '' }); setEndsNovoCliente([]); if (v) api.get(`/enderecos?clienteId=${v}`).then(setEndsNovoCliente).catch(() => setEndsNovoCliente([])); }} opcoes={clientes.map((c) => ({ id: c.id, rotulo: c.nome }))} />
-                <Selecao label="Endereço do novo cliente" value={finalizar.novoEnderecoId} onChange={(v) => setFinalizar({ ...finalizar, novoEnderecoId: v })} opcoes={endsNovoCliente.map((e) => ({ id: e.id, rotulo: `${e.logradouro}${e.numero ? ', ' + e.numero : ''}` }))} />
-              </>
-            )}
-            <div className="flex gap-2 justify-end mt-2">
-              <Botao variante="secundario" onClick={() => setFinalizar(null)}>Cancelar</Botao>
-              <Botao variante="perigo" onClick={confirmarFinalizacao}>Finalizar</Botao>
-            </div>
-          </div>
-        )}
-      </Dialogo>
+        </Modal>
+      )}
     </div>
   );
 }
 
-function Selecao({ label, value, onChange, opcoes }: { label: string; value?: string; onChange: (v: string) => void; opcoes: { id: string; rotulo: string }[] }) {
+/* ─── Modal Nova Locação ─── */
+function ModalNovaLocacao({ onClose, onSave, clientes, produtos }: { onClose: () => void; onSave: (dados: any) => void; clientes: any[]; produtos: any[] }) {
+  const [dados, setDados] = useState<any>({ regra: 'VALOR_FIXO', frequencia: 'MENSAL' });
+  const [novoClienteId, setNovoClienteId] = useState('');
+  const { data: enderecos } = useApi<any[]>(novoClienteId ? `/enderecos?clienteId=${novoClienteId}` : null);
+
   return (
-    <label className="flex flex-col gap-1.5 text-sm">
-      <span className="text-suave font-medium">{label}</span>
-      <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} className="border border-borda rounded-xl px-3 py-2 bg-white">
-        <option value="">Selecione…</option>
-        {opcoes.map((o) => <option key={o.id} value={o.id}>{o.rotulo}</option>)}
-      </select>
-    </label>
+    <Modal aberto={true} aoFechar={onClose} titulo="Nova locação" tamanho="lg">
+      <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto">
+        <Select label="Cliente" value={novoClienteId} onChange={(e) => { setNovoClienteId(e.target.value); setDados({ ...dados, clienteId: e.target.value, enderecoId: '' }); }}>
+          <option value="">Selecione…</option>
+          {clientes.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+        </Select>
+        <Select label="Produto" value={dados.produtoId ?? ''} onChange={(e) => setDados({ ...dados, produtoId: e.target.value })}>
+          <option value="">Selecione…</option>
+          {produtos.map((p: any) => <option key={p.id} value={p.id}>{p.plaqueta} {p.descricao ?? ''}</option>)}
+        </Select>
+        {novoClienteId && (
+          <Select label="Endereço" value={dados.enderecoId ?? ''} onChange={(e) => setDados({ ...dados, enderecoId: e.target.value })}>
+            <option value="">Selecione…</option>
+            {(enderecos ?? []).map((e: any) => <option key={e.id} value={e.id}>{e.logradouro}{e.numero ? `, ${e.numero}` : ''}</option>)}
+          </Select>
+        )}
+        <Select label="Regra" value={dados.regra} onChange={(e) => setDados({ ...dados, regra: e.target.value })}>
+          <option value="VALOR_FIXO">Valor fixo</option>
+          <option value="PERCENTUAL_A_RECEBER">Percentual a receber</option>
+          <option value="PERCENTUAL_A_PAGAR">Percentual a pagar</option>
+        </Select>
+        {dados.regra === 'VALOR_FIXO' ? (
+          <>
+            <Select label="Frequência" value={dados.frequencia ?? 'MENSAL'} onChange={(e) => setDados({ ...dados, frequencia: e.target.value })}>
+              <option value="SEMANAL">Semanal</option>
+              <option value="QUINZENAL">Quinzenal</option>
+              <option value="MENSAL">Mensal</option>
+            </Select>
+            <Campo label="Valor fixo (R$)" inputMode="decimal" value={dados.valorFixo ?? ''} onChange={(e) => setDados({ ...dados, valorFixo: e.target.value })} />
+          </>
+        ) : (
+          <>
+            <Campo label="Valor por partida (R$)" inputMode="decimal" value={dados.valorPartida ?? ''} onChange={(e) => setDados({ ...dados, valorPartida: e.target.value })} />
+            <Campo label="Percentual (%)" inputMode="decimal" value={dados.percentual ?? ''} onChange={(e) => setDados({ ...dados, percentual: e.target.value })} />
+            <Campo label="Contador inicial" inputMode="numeric" value={dados.contadorInicial ?? ''} onChange={(e) => setDados({ ...dados, contadorInicial: e.target.value })} />
+          </>
+        )}
+        <div className="flex gap-2 justify-end mt-2">
+          <Botao variante="secundario" onClick={onClose}>Cancelar</Botao>
+          <Botao onClick={() => onSave({ ...dados, clienteId: novoClienteId })} disabled={!novoClienteId || !dados.produtoId || !dados.enderecoId}>Criar locação</Botao>
+        </div>
+      </div>
+    </Modal>
   );
 }

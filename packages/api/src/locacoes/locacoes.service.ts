@@ -6,12 +6,69 @@ import { UsuarioRequisicao } from '../comum/decorators/usuario-atual.decorator';
 import { CriarLocacaoDto, RegraDto } from './dto/criar-locacao.dto';
 import { FinalizarLocacaoDto, TipoFinalizacaoDto } from './dto/finalizar-locacao.dto';
 
+interface ListarLocacoesFiltros {
+  clienteId?: string;
+  status?: string;
+  pagina?: number;
+  limite?: number;
+}
+
 @Injectable()
 export class LocacoesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
   ) {}
+
+  /* ─── LISTAGEM COM FILTROS ─── */
+  async listar(filtros: ListarLocacoesFiltros) {
+    const { clienteId, status, pagina = 1, limite = 20 } = filtros;
+    const where: Prisma.LocacaoWhereInput = { deletedAt: null };
+    if (clienteId) where.clienteId = clienteId;
+    if (status) where.status = status as any;
+
+    const [itens, total] = await Promise.all([
+      this.prisma.locacao.findMany({
+        where,
+        include: {
+          cliente: { select: { id: true, nome: true } },
+          produto: { select: { id: true, plaqueta: true, descricao: true } },
+          endereco: { select: { id: true, logradouro: true, numero: true, bairro: true, cidade: true } },
+        },
+        orderBy: { dataInicio: 'desc' },
+        skip: (pagina - 1) * limite,
+        take: limite,
+      }),
+      this.prisma.locacao.count({ where }),
+    ]);
+
+    return { itens, total, pagina, limite };
+  }
+
+  /* ─── DETALHE COM COBRANÇAS E PAGAMENTOS ─── */
+  async obter(id: string) {
+    const locacao = await this.prisma.locacao.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        cliente: { select: { id: true, nome: true, cpfCnpj: true, telefones: true } },
+        produto: { select: { id: true, plaqueta: true, descricao: true, contador: true } },
+        endereco: { select: { id: true, logradouro: true, numero: true, bairro: true, cidade: true, estado: true, cep: true } },
+        deposito: { select: { id: true, nome: true } },
+        cobrancas: {
+          where: { deletedAt: null },
+          orderBy: { dataCobranca: 'desc' },
+          take: 10,
+          include: {
+            usuario: { select: { id: true, nome: true } },
+            pagamentos: { where: { deletedAt: null, estornadoPorId: null }, orderBy: { dataPagamento: 'desc' } },
+          },
+        },
+        saldos: { where: { deletedAt: null } },
+      },
+    });
+    if (!locacao) throw new NotFoundException('Locação não encontrada.');
+    return locacao;
+  }
 
   async criar(u: UsuarioRequisicao, dto: CriarLocacaoDto, ip?: string) {
     const produto = await this.prisma.produto.findFirst({ where: { id: dto.produtoId, deletedAt: null } });

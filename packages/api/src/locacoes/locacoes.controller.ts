@@ -1,5 +1,5 @@
 import { Body, Controller, Param, Post, Get, Query, Req } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { LocacoesService } from './locacoes.service';
 import { CriarLocacaoDto } from './dto/criar-locacao.dto';
 import { FinalizarLocacaoDto } from './dto/finalizar-locacao.dto';
@@ -14,8 +14,30 @@ export class LocacoesController {
 
   @Get()
   @RequerPermissoes('locacoes.ler')
-  listar(@Query('clienteId') clienteId: string) {
-    return this.locacoes.listarAtivasDoCliente(clienteId);
+  @ApiOperation({ summary: 'Lista locações com filtros e paginação' })
+  @ApiQuery({ name: 'clienteId', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'pagina', required: false })
+  @ApiQuery({ name: 'limite', required: false })
+  listar(
+    @Query('clienteId') clienteId?: string,
+    @Query('status') status?: string,
+    @Query('pagina') pagina = '1',
+    @Query('limite') limite = '20',
+  ) {
+    return this.locacoes.listar({
+      clienteId,
+      status,
+      pagina: Number(pagina),
+      limite: Number(limite),
+    });
+  }
+
+  @Get(':id')
+  @RequerPermissoes('locacoes.ler')
+  @ApiOperation({ summary: 'Detalha uma locação com cobranças e pagamentos' })
+  obter(@Param('id') id: string) {
+    return this.locacoes.obter(id);
   }
 
   @Get(':id/contexto-cobranca')
