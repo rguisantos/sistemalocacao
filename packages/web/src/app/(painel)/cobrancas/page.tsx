@@ -201,7 +201,10 @@ function ModalRegistro({ onClose, clientes }: { onClose: () => void; clientes: a
   const [erro, setErro] = useState('');
   const [sucesso, setSucesso] = useState('');
 
-  const { data: locacoes } = useApi<any[]>(clienteId ? `/locacoes?clienteId=${clienteId}` : null);
+  // [FIX] /locacoes retorna { itens, total, pagina, limite } (paginado).
+  // Tratar o objeto como array fazia (locacoes ?? []).map quebrar o modal ao escolher o cliente.
+  const { data: locacoesRaw } = useApi<any>(clienteId ? `/locacoes?clienteId=${clienteId}` : null);
+  const locacoes: any[] = Array.isArray(locacoesRaw) ? locacoesRaw : (locacoesRaw?.itens ?? []);
 
   function escolherLocacao(id: string) {
     setLocacaoId(id); setCtx(null); setContador(''); setValorPago(''); setSucesso('');

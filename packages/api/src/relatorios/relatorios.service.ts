@@ -58,7 +58,9 @@ export class RelatoriosService {
     );
 
     // Contagens
-    const whereCliente: any = { ativo: true, deletedAt: null };
+    // [FIX] Cliente não possui campo `ativo` (usa soft-delete via deletedAt).
+    // O filtro `ativo: true` causava PrismaClientValidationError -> 500 -> painel não carregava.
+    const whereCliente: any = { deletedAt: null };
     if (rotaId) whereCliente.rotaId = rotaId;
     const totalClientes = await this.prisma.cliente.count({ where: whereCliente });
     const totalProdutos = await this.prisma.produto.count({ where: { deletedAt: null } });

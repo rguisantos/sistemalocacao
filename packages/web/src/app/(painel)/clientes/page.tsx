@@ -42,14 +42,15 @@ export default function Clientes() {
     setErro(''); setSalvando(true);
     try {
       if (editando.id) {
-        await api.patch(`/clientes/${editando.id}`, { nome: editando.nome, rotaId: editando.rotaId, version: editando.version });
+        // [FIX] observacoes era coletada no modal mas nunca enviada (perdida silenciosamente).
+        await api.patch(`/clientes/${editando.id}`, { nome: editando.nome, rotaId: editando.rotaId, observacoes: editando.observacoes || undefined, version: editando.version });
         toast('Cliente atualizado!', 'sucesso');
       } else {
         const e = editando.endereco ?? {};
         const endereco = e.logradouro
           ? { logradouro: e.logradouro, numero: e.numero, bairro: e.bairro, cidade: e.cidade, estado: e.estado, cep: e.cep, complemento: e.complemento, latitude: e.latitude, longitude: e.longitude }
           : undefined;
-        await api.post('/clientes', { tipo: editando.tipo ?? 'PF', nome: editando.nome, cpfCnpj: editando.cpfCnpj, rotaId: editando.rotaId, endereco });
+        await api.post('/clientes', { tipo: editando.tipo ?? 'PF', nome: editando.nome, cpfCnpj: editando.cpfCnpj, rotaId: editando.rotaId, observacoes: editando.observacoes || undefined, endereco });
         toast('Cliente criado!', 'sucesso');
       }
       setEditando(null); revalidar('/clientes');

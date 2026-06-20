@@ -13,9 +13,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const raw = localStorage.getItem('usuario');
-    if (raw) setUsuario(JSON.parse(raw));
-    setCarregando(false);
+    try {
+      const raw = localStorage.getItem('usuario');
+      if (raw) setUsuario(JSON.parse(raw));
+    } catch {
+      // Sessão corrompida no storage — limpa para não travar o boot (tela branca).
+      ['token', 'refresh', 'usuario'].forEach((k) => localStorage.removeItem(k));
+    } finally {
+      setCarregando(false);
+    }
   }, []);
 
   async function entrar(cpf: string, senha: string) {
