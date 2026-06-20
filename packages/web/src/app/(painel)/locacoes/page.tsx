@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
-import { Plus, Search, Filter, FileSignature, ChevronDown, ChevronUp, X } from 'lucide-react';
-import { useApi, useApiPaginated, useApiMutation, revalidar } from '@/lib/swr';
+import { Plus, FileSignature, ChevronDown, ChevronUp } from 'lucide-react';
+import { useApi, useApiMutation, revalidar } from '@/lib/swr';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatarBRL, data as fmtData } from '@/lib/format';
@@ -21,6 +21,13 @@ const STATUS_MAP: Record<string, { cor: 'verde' | 'azul' | 'cinza'; label: strin
   FINALIZADA: { cor: 'cinza', label: 'Finalizada' },
 };
 
+/** Normaliza resposta de locações — suporta API nova (paginada) e antiga (array) */
+function normalizarLocacoes(raw: any): { itens: any[]; total: number } {
+  if (Array.isArray(raw)) return { itens: raw, total: raw.length };
+  if (raw?.itens) return { itens: raw.itens, total: raw.total ?? raw.itens.length };
+  return { itens: [], total: 0 };
+}
+
 export default function LocacoesPage() {
   const { pode } = useAuth();
   const [clienteId, setClienteId] = useState('');
@@ -28,7 +35,6 @@ export default function LocacoesPage() {
   const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [pagina, setPagina] = useState(1);
 
-  // Modal nova locação
   const [criando, setCriando] = useState(false);
   const [finalizando, setFinalizando] = useState<any | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -38,19 +44,10 @@ export default function LocacoesPage() {
   const { data: produtos } = useApi<any[]>('/produtos');
   const { data: depositos } = useApi<any[]>('/depositos');
 
-  // Endereços do cliente selecionado (para criar locação)
-  const [novoClienteId, setNovoClienteId] = useState('');
-  const { data: enderecos } = useApi<any[]>(novoClienteId ? `/enderecos?clienteId=${novoClienteId}` : null);
-
-  const params = new URLSearchParams();
-  if (clienteId) params.set('clienteId', clienteId);
-  if (statusFiltro) params.set('status', statusFiltro);
-  params.set('pagina', String(pagina));
-  params.set('limite', '15');
-
-  const { data: resultado, isLoading } = useApiPaginated<any>(`/locacoes?${params.toString()}`, pagina, 15);
-  const locacoes = resultado?.itens ?? [];
-  const total = resultado?.total ?? 0;
+  // Busca locações — sem clienteId retorna todas
+  const qs = clienteId ? `?clienteId=${clienteId}` : '';
+  const { data: rawLocacoes, isLoading } = useApi<any>(`/locacoes${qs}`);
+  const { itens: locacoes, total } = normalizarLocacoes(rawLocacoes);
 
   async function criarLocacao(dados: any) {
     setSalvando(true); setErro('');
@@ -85,12 +82,12 @@ export default function LocacoesPage() {
   return (
     <div className="flex flex-col gap-6">
       <Header titulo="Locações" subtitulo="Gerencie locações de produtos"
-        acoes={pode('locacoes.criar') ? <Botao tamanho="sm" icon={Plus} onClick={() => { setCriando(true); setNovoClienteId(''); }}>Nova locação</Botao> : undefined}
+        acoes={pode('locacoes.criar') ? <Botao tamanho="sm" icon={Plus} onClick={() => setCriando(true)}>Nova locação</Botao> : undefined}
       />
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={clienteId} onChange={(e) => { setClienteId(e.target.value); setPagina(1); }} className="sm:w-48">
+        <Select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="sm:w-48">
           <option value="">Todos os clientes</option>
           {(clientes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
         </Select>
@@ -100,12 +97,7 @@ export default function LocacoesPage() {
       </div>
       {mostrarFiltros && (
         <Cartao className="flex flex-wrap items-end gap-4">
-          <Select label="Status" value={statusFiltro} onChange={(e) => { setStatusFiltro(e.target.value); setPagina(1); }}>
-            <option value="">Todos</option>
-            <option value="ATIVA">Ativa</option>
-            <option value="FINALIZADA">Finalizada</option>
-          </Select>
-          <Botao variante="fantasma" tamanho="sm" onClick={() => { setClienteId(''); setStatusFiltro(''); setPagina(1); }}>Limpar</Botao>
+          <Botao variante="fantasma" tamanho="sm" onClick={() => { setClienteId(''); setStatusFiltro(''); }}>Limpar</Botao>
         </Cartao>
       )}
 
@@ -120,7 +112,7 @@ export default function LocacoesPage() {
             <Tabela colunas={['Produto', 'Cliente', 'Regra', 'Início', 'Saldo', 'Status', '']}>
               {locacoes.map((l: any) => (
                 <tr key={l.id} className="hover:bg-papel/50 transition">
-                  <td className="px-4 py-3 text-sm font-medium">{l.produto?.plaqueta} <span className="text-suave text-xs">{l.produto?.descricao}</span></td>
+                  <td className="px-4 py-3 text-sm font-medium">{l.produto?.plaqueta ?? '—'} <span className="text-suave text-xs">{l.produto?.descricao ?? ''}</span></td>
                   <td className="px-4 py-3 text-sm">{l.cliente?.nome ?? '—'}</td>
                   <td className="px-4 py-3 text-sm"><Badge var="azul">{REGRA_LABEL[l.regra] ?? l.regra}</Badge></td>
                   <td className="px-4 py-3 text-sm text-suave">{fmtData(l.dataInicio)}</td>
@@ -128,9 +120,8 @@ export default function LocacoesPage() {
                   <td className="px-4 py-3"><Badge var={(STATUS_MAP[l.status]?.cor ?? 'cinza') as any}>{STATUS_MAP[l.status]?.label ?? l.status}</Badge></td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex gap-1 justify-end">
-                      <Link href={`/locacoes/${l.id}`} className="text-feltro hover:text-latao text-sm transition">Detalhes</Link>
                       {l.status === 'ATIVA' && pode('locacoes.finalizar_deposito') && (
-                        <button onClick={() => setFinalizando({ id: l.id, tipo: 'DEPOSITO', produto: l.produto?.plaqueta })} className="text-suave hover:text-alerta text-sm transition ml-2">Finalizar</button>
+                        <button onClick={() => setFinalizando({ id: l.id, tipo: 'DEPOSITO', produto: l.produto?.plaqueta ?? '—' })} className="text-suave hover:text-alerta text-sm transition">Finalizar</button>
                       )}
                     </div>
                   </td>
@@ -143,19 +134,19 @@ export default function LocacoesPage() {
             {locacoes.map((l: any) => (
               <Cartao key={l.id} className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium">{l.produto?.plaqueta}</span>
+                  <span className="text-sm font-medium">{l.produto?.plaqueta ?? '—'}</span>
                   <Badge var={(STATUS_MAP[l.status]?.cor ?? 'cinza') as any}>{STATUS_MAP[l.status]?.label ?? l.status}</Badge>
                 </div>
-                <p className="text-xs text-suave">{l.cliente?.nome} • {REGRA_LABEL[l.regra] ?? l.regra}</p>
+                <p className="text-xs text-suave">{l.cliente?.nome ?? '—'} • {REGRA_LABEL[l.regra] ?? l.regra}</p>
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-suave">Saldo: <span className="valor font-medium">{formatarBRL(l.saldoDevedorAtual)}</span></span>
-                  <Link href={`/locacoes/${l.id}`} className="text-feltro text-sm">Ver</Link>
+                  {l.status === 'ATIVA' && pode('locacoes.finalizar_deposito') && (
+                    <button onClick={() => setFinalizando({ id: l.id, tipo: 'DEPOSITO', produto: l.produto?.plaqueta ?? '—' })} className="text-alerta text-sm">Finalizar</button>
+                  )}
                 </div>
               </Cartao>
             ))}
           </div>
-
-          <Paginacao pagina={pagina} total={total} limite={15} onChange={setPagina} />
         </>
       )}
 
@@ -177,12 +168,10 @@ export default function LocacoesPage() {
                 {(depositos ?? []).map((d: any) => <option key={d.id} value={d.id}>{d.nome}</option>)}
               </Select>
             ) : (
-              <>
-                <Select label="Novo cliente" value={finalizando.novoClienteId ?? ''} onChange={(e) => setFinalizando({ ...finalizando, novoClienteId: e.target.value, novoEnderecoId: '' })}>
-                  <option value="">Selecione…</option>
-                  {(clientes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-                </Select>
-              </>
+              <Select label="Novo cliente" value={finalizando.novoClienteId ?? ''} onChange={(e) => setFinalizando({ ...finalizando, novoClienteId: e.target.value })}>
+                <option value="">Selecione…</option>
+                {(clientes ?? []).map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </Select>
             )}
             {erro && <p className="text-alerta text-sm">{erro}</p>}
             <div className="flex gap-2 justify-end">
@@ -196,7 +185,6 @@ export default function LocacoesPage() {
   );
 }
 
-/* ─── Modal Nova Locação ─── */
 function ModalNovaLocacao({ onClose, onSave, clientes, produtos }: { onClose: () => void; onSave: (dados: any) => void; clientes: any[]; produtos: any[] }) {
   const [dados, setDados] = useState<any>({ regra: 'VALOR_FIXO', frequencia: 'MENSAL' });
   const [novoClienteId, setNovoClienteId] = useState('');

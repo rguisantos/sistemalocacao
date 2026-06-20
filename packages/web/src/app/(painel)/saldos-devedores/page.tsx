@@ -35,15 +35,10 @@ export default function SaldosDevedoresPage() {
 
   const { data: clientes } = useApi<any[]>('/clientes');
 
-  const params = new URLSearchParams();
-  if (clienteId) params.set('clienteId', clienteId);
-  if (statusFiltro) params.set('status', statusFiltro);
-  params.set('pagina', String(pagina));
-  params.set('limite', '15');
-
-  const { data: resultado, isLoading } = useApiPaginated<any>(`/saldo-devedor?${params.toString()}`, pagina, 15);
-  const saldos = resultado?.itens ?? [];
-  const total = resultado?.total ?? 0;
+  const { data: resultado, isLoading } = useApi<any>(`/saldo-devedor${clienteId ? `?clienteId=${clienteId}` : ''}`);
+  // Suporta API nova (paginada {itens, total}) e antiga (array direto)
+  const saldos: any[] = Array.isArray(resultado) ? resultado : (resultado?.itens ?? []);
+  const total = Array.isArray(resultado) ? resultado.length : (resultado?.total ?? 0);
 
   // Calcular KPIs
   const totalPendente = saldos.reduce((s: number, item: any) => {

@@ -52,9 +52,10 @@ export default function CobrancasPage() {
   params.set('limite', '15');
   const qs = params.toString();
 
-  const { data: resultado, isLoading } = useApiPaginated<any>(`/cobrancas?${qs}`, pagina, 15);
-  const cobrancas = resultado?.itens ?? [];
-  const total = resultado?.total ?? 0;
+  const { data: resultado, isLoading } = useApi<any>(`/cobrancas?${qs}`);
+  // Suporta API nova (paginada {itens, total}) e antiga (objeto erro ou sem suporte)
+  const cobrancas: any[] = Array.isArray(resultado) ? resultado : (resultado?.itens ?? []);
+  const total = Array.isArray(resultado) ? resultado.length : (resultado?.total ?? 0);
 
   function limparFiltros() {
     setStatusFiltro(''); setClienteId(''); setBusca('');
