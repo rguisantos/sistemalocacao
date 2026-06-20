@@ -18,3 +18,8 @@ export class CondicoesService extends CadastroCrudService {
   protected nomeDelegate = 'condicao'; protected entidade = 'Condicao'; protected ordenarPor = 'descricao';
   constructor(prisma: PrismaService, auditoria: AuditoriaService) { super(prisma, auditoria); }
 }
+@Injectable()
+export class CoresService extends CadastroCrudService {
+  protected nomeDelegate = 'cor'; protected entidade = 'Cor'; protected ordenarPor = 'nome';
+  constructor(prisma: PrismaService, auditoria: AuditoriaService) { super(prisma, auditoria); }
+}

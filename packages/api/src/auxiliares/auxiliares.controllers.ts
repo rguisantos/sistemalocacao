@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { TiposProdutoService, TamanhosService, CondicoesService } from './auxiliares.services';
+import { TiposProdutoService, TamanhosService, CondicoesService, CoresService } from './auxiliares.services';
 import { CriarTipoDto, AtualizarTipoDto, CriarDescricaoDto, AtualizarDescricaoDto } from './dto/auxiliares.dto';
 import { RequerPermissoes } from '../comum/decorators/permissoes.decorator';
 import { UsuarioAtual, UsuarioRequisicao } from '../comum/decorators/usuario-atual.decorator';
@@ -44,5 +44,19 @@ export class CondicoesController {
     const { version, ...d } = dto; return this.s.atualizar(u, id, d, version, r.ip);
   }
   @Delete(':id') @RequerPermissoes('auxiliares.condicoes.excluir')
+  remover(@UsuarioAtual() u: UsuarioRequisicao, @Param('id') id: string, @Req() r: any) { return this.s.remover(u, id, r.ip); }
+}
+
+@ApiTags('auxiliares') @ApiBearerAuth() @Controller('cores')
+export class CoresController {
+  constructor(private readonly s: CoresService) {}
+  @Get() @RequerPermissoes('auxiliares.cores.ler') listar() { return this.s.listar(); }
+  @Post() @RequerPermissoes('auxiliares.cores.criar')
+  criar(@UsuarioAtual() u: UsuarioRequisicao, @Body() dto: CriarTipoDto, @Req() r: any) { return this.s.criar(u, { ...dto }, r.ip); }
+  @Patch(':id') @RequerPermissoes('auxiliares.cores.editar')
+  atualizar(@UsuarioAtual() u: UsuarioRequisicao, @Param('id') id: string, @Body() dto: AtualizarTipoDto, @Req() r: any) {
+    const { version, ...d } = dto; return this.s.atualizar(u, id, d, version, r.ip);
+  }
+  @Delete(':id') @RequerPermissoes('auxiliares.cores.excluir')
   remover(@UsuarioAtual() u: UsuarioRequisicao, @Param('id') id: string, @Req() r: any) { return this.s.remover(u, id, r.ip); }
 }

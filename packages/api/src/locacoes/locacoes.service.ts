@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService } from '../comum/auditoria/auditoria.service';
 import { UsuarioRequisicao } from '../comum/decorators/usuario-atual.decorator';
 import { CriarLocacaoDto, RegraDto } from './dto/criar-locacao.dto';
+import { AtualizarLocacaoDto } from './dto/atualizar-locacao.dto';
 import { FinalizarLocacaoDto, TipoFinalizacaoDto } from './dto/finalizar-locacao.dto';
 
 interface ListarLocacoesFiltros {
@@ -104,6 +105,43 @@ export class LocacoesService {
       }
       throw e;
     }
+  }
+
+  /* ─── EDIÇÃO (admin) — escopo limitado, ver AtualizarLocacaoDto ─── */
+  async atualizar(u: UsuarioRequisicao, id: string, dto: AtualizarLocacaoDto, ip?: string) {
+    const atual = await this.prisma.locacao.findFirst({ where: { id, deletedAt: null } });
+    if (!atual) throw new NotFoundException('Locação não encontrada.');
+    if (atual.status === 'FINALIZADA') throw new BadRequestException('Locação finalizada não pode ser editada.');
+
+    const data: any = {};
+    let mudouRegra = false;
+
+    if (atual.regra === 'VALOR_FIXO') {
+      if (dto.frequencia !== undefined) { data.frequencia = dto.frequencia; mudouRegra = true; }
+      if (dto.valorFixo !== undefined) { data.valorFixo = dto.valorFixo; mudouRegra = true; }
+    } else {
+      if (dto.valorPartida !== undefined) { data.valorPartida = dto.valorPartida; mudouRegra = true; }
+      if (dto.percentual !== undefined) { data.percentual = dto.percentual; mudouRegra = true; }
+    }
+
+    if (dto.enderecoId !== undefined) {
+      // O endereço precisa ser do MESMO cliente da locação (anti-IDOR).
+      const end = await this.prisma.endereco.findFirst({ where: { id: dto.enderecoId, clienteId: atual.clienteId, deletedAt: null } });
+      if (!end) throw new BadRequestException('Endereço inválido para este cliente.');
+      data.enderecoId = dto.enderecoId;
+    }
+    if (dto.dataInicio !== undefined) data.dataInicio = new Date(dto.dataInicio);
+
+    // Alterar parâmetros da regra cria uma nova versão; cobranças passadas mantêm o snapshot.
+    if (mudouRegra) data.regraVersao = { increment: 1 };
+    data.version = { increment: 1 };
+
+    const r = await this.prisma.locacao.updateMany({ where: { id, version: dto.version }, data });
+    if (r.count === 0) throw new ConflictException('Locação alterada por outra fonte. Recarregue e tente novamente.');
+
+    const novo = await this.prisma.locacao.findUnique({ where: { id } });
+    await this.auditoria.registrar({ usuarioId: u.id, acao: 'EDITAR', entidade: 'Locacao', entidadeId: id, dadosAnteriores: atual, dadosNovos: novo, ip });
+    return novo;
   }
 
   async finalizar(u: UsuarioRequisicao, id: string, dto: FinalizarLocacaoDto, ip?: string) {

@@ -23,6 +23,10 @@ export const PERMISSOES: { chave: string; descricao: string }[] = [
   { chave: 'auxiliares.condicoes.criar', descricao: 'Criar condições' },
   { chave: 'auxiliares.condicoes.editar', descricao: 'Editar condições' },
   { chave: 'auxiliares.condicoes.excluir', descricao: 'Excluir condições' },
+  { chave: 'auxiliares.cores.ler', descricao: 'Ler cores' },
+  { chave: 'auxiliares.cores.criar', descricao: 'Criar cores' },
+  { chave: 'auxiliares.cores.editar', descricao: 'Editar cores' },
+  { chave: 'auxiliares.cores.excluir', descricao: 'Excluir cores' },
   // Produtos
   { chave: 'produtos.ler', descricao: 'Ler produtos' },
   { chave: 'produtos.criar', descricao: 'Criar produtos' },
@@ -73,7 +77,7 @@ export const PAPEIS: Record<string, string[]> = {
   Administrador: PERMISSOES.map((p) => p.chave),
   Secretario: [
     'admin.usuarios.ler', 'rotas.ler', 'depositos.ler', 'produtos.ler', 'produtos.criar', 'produtos.editar',
-    'auxiliares.tipos.ler', 'auxiliares.tamanhos.ler', 'auxiliares.condicoes.ler',
+    'auxiliares.tipos.ler', 'auxiliares.tamanhos.ler', 'auxiliares.condicoes.ler', 'auxiliares.cores.ler',
     'clientes.ler', 'clientes.ler_todas_rotas', 'clientes.criar', 'clientes.editar', 'clientes.transferir_rota',
     'locacoes.ler', 'locacoes.criar', 'cobrancas.ler', 'manutencoes.ler',
     'relatorios.ler',

@@ -20,6 +20,7 @@ export default function Produtos() {
   const { data: tipos } = useApi<any[]>('/tipos-produto');
   const { data: tamanhos } = useApi<any[]>('/tamanhos');
   const { data: condicoes } = useApi<any[]>('/condicoes');
+  const { data: cores } = useApi<any[]>('/cores');
 
   const { remover } = useApiMutation();
 
@@ -34,7 +35,8 @@ export default function Produtos() {
   async function salvar() {
     setErro(''); setSalvando(true);
     try {
-      const base: any = { plaqueta: ed.plaqueta, descricao: ed.descricao, tipoId: ed.tipoId, tamanhoId: ed.tamanhoId, condicaoId: ed.condicaoId, chave: ed.chave };
+      const corNome = (cores ?? []).find((c: any) => c.id === ed.corId)?.nome;
+      const base: any = { plaqueta: ed.plaqueta, descricao: corNome ?? ed.descricao, corId: ed.corId || undefined, tipoId: ed.tipoId, tamanhoId: ed.tamanhoId, condicaoId: ed.condicaoId, chave: ed.chave };
       if (ed.id) await api.patch(`/produtos/${ed.id}`, { ...base, version: ed.version });
       else await api.post('/produtos', { ...base, contador: ed.contador ? Number(ed.contador) : undefined });
       toast(ed.id ? 'Produto atualizado!' : 'Produto criado!', 'sucesso');
@@ -123,7 +125,10 @@ export default function Produtos() {
         {ed && (
           <div className="flex flex-col gap-3">
             <Campo label="Plaqueta" value={ed.plaqueta ?? ''} onChange={(e) => setEd({ ...ed, plaqueta: e.target.value })} />
-            <Campo label="Descrição (cor)" value={ed.descricao ?? ''} onChange={(e) => setEd({ ...ed, descricao: e.target.value })} />
+            <Select label="Cor" value={ed.corId ?? ''} onChange={(e) => { const c = (cores ?? []).find((x: any) => x.id === e.target.value); setEd({ ...ed, corId: e.target.value, descricao: c?.nome ?? ed.descricao }); }}>
+              <option value="">{(cores?.length ?? 0) ? 'Selecione…' : 'Cadastre em Cadastros › Cores'}</option>
+              {cores?.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </Select>
             <Select label="Tipo" value={ed.tipoId ?? ''} onChange={(e) => setEd({ ...ed, tipoId: e.target.value })}>
               <option value="">Selecione…</option>
               {tipos?.map((o) => <option key={o.id} value={o.id}>{o.nome}</option>)}

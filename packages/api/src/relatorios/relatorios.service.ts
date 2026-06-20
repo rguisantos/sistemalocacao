@@ -236,6 +236,46 @@ export class RelatoriosService {
     };
   }
 
+  /** Relatório de produtos em locação ATIVA, agrupados por rota do cliente. */
+  async produtosPorRota(rotaId?: string) {
+    const where: any = { status: 'ATIVA', deletedAt: null };
+    if (rotaId) where.cliente = { rotaId };
+
+    const locacoes = await this.prisma.locacao.findMany({
+      where,
+      select: {
+        id: true,
+        regra: true,
+        produto: { select: { plaqueta: true, descricao: true } },
+        cliente: { select: { id: true, nome: true, rotaId: true } },
+        endereco: { select: { logradouro: true, numero: true, bairro: true, cidade: true } },
+      },
+      orderBy: { dataInicio: 'desc' },
+    });
+
+    const rotas = await this.prisma.rota.findMany({ where: { deletedAt: null }, select: { id: true, nome: true } });
+    const rotaMap = Object.fromEntries(rotas.map((r) => [r.id, r.nome]));
+
+    const grupos = new Map<string, { rotaId: string; rota: string; itens: any[] }>();
+    for (const l of locacoes) {
+      const rid = l.cliente?.rotaId ?? 'sem';
+      const g = grupos.get(rid) ?? { rotaId: rid, rota: rotaMap[rid] ?? 'Sem rota', itens: [] };
+      const e = l.endereco;
+      g.itens.push({
+        locacaoId: l.id,
+        plaqueta: l.produto?.plaqueta ?? '—',
+        descricao: l.produto?.descricao ?? null,
+        cliente: l.cliente?.nome ?? '—',
+        clienteId: l.cliente?.id ?? null,
+        regra: l.regra,
+        endereco: e ? `${e.logradouro ?? ''}${e.numero ? ', ' + e.numero : ''}${e.bairro ? ' — ' + e.bairro : ''}${e.cidade ? ' / ' + e.cidade : ''}`.trim() : null,
+      });
+      grupos.set(rid, g);
+    }
+    const porRota = [...grupos.values()].sort((a, b) => a.rota.localeCompare(b.rota));
+    return { totalProdutos: locacoes.length, totalRotas: porRota.length, porRota };
+  }
+
   /** Relatório de clientes por rota. */
   async clientes(rotaId?: string) {
     const where: any = { deletedAt: null };

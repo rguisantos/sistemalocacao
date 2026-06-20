@@ -33,3 +33,9 @@ html { transition: background-color 0.2s ease, color 0.2s ease; }
 
 /* ─── Busca global overlay ─── */
 .search-overlay { backdrop-filter: blur(4px); }
+
+/* Mapa (Leaflet) abaixo da navegação — evita sobrepor a sidebar (z-40). */
+.leaflet-container { z-index: 0; }
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom { z-index: 1; }

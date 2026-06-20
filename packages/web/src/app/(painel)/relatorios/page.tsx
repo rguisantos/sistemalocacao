@@ -1,13 +1,14 @@
 'use client';
 import { useAuth } from '@/lib/auth';
 import { Header, Cartao } from '@/components/ui/primitives';
-import { DollarSign, Package, Users, Map, BarChart3, GitCompare } from 'lucide-react';
+import { DollarSign, Package, Users, Map, BarChart3, GitCompare, MapPinned } from 'lucide-react';
 import Link from 'next/link';
 
 const CATEGORIAS = [
   { id: 'financeiro', titulo: 'Financeiro', descricao: 'Faturamento, recebimentos e inadimplência', icone: DollarSign, cor: 'bg-latao/10 text-latao', href: '/relatorios/financeiro' },
   { id: 'locacoes', titulo: 'Locações', descricao: 'Locações ativas e finalizadas por período', icone: Package, cor: 'bg-feltro/5 text-feltro', href: '/relatorios/locacoes' },
   { id: 'produtos', titulo: 'Produtos', descricao: 'Produtos locados, estoque e tipos', icone: BarChart3, cor: 'bg-blue-50 text-blue-600', href: '/relatorios/produtos' },
+  { id: 'produtos-rota', titulo: 'Produtos por rota', descricao: 'Equipamentos em locação ativa, agrupados por rota', icone: MapPinned, cor: 'bg-teal-50 text-teal-600', href: '/relatorios/produtos-rota' },
   { id: 'clientes', titulo: 'Clientes e Rotas', descricao: 'Distribuição de clientes por rota', icone: Users, cor: 'bg-purple-50 text-purple-600', href: '/relatorios/clientes' },
   { id: 'recebimentos', titulo: 'Recebimentos', descricao: 'Recebimentos por forma de pagamento', icone: Map, cor: 'bg-emerald-50 text-emerald-600', href: '/relatorios/recebimentos' },
   { id: 'comparativo', titulo: 'Comparativo', descricao: 'Comparação período a período', icone: GitCompare, cor: 'bg-amber-50 text-amber-600', href: '/relatorios/comparativo' },

@@ -7,6 +7,7 @@ const ABAS = [
   { href: '/tipos-produto', rotulo: 'Tipos' },
   { href: '/tamanhos', rotulo: 'Tamanhos' },
   { href: '/condicoes', rotulo: 'Condições' },
+  { href: '/cores', rotulo: 'Cores' },
 ];
 export function AbasCadastros() {
   const caminho = usePathname();

@@ -34,6 +34,9 @@ export class RelatoriosController {
   @Get('produtos') @RequerPermissoes('relatorios.ler')
   produtos() { return this.rel.produtos(); }
 
+  @Get('produtos-por-rota') @RequerPermissoes('relatorios.ler')
+  produtosPorRota(@Query('rotaId') rotaId?: string) { return this.rel.produtosPorRota(rotaId || undefined); }
+
   @Get('clientes') @RequerPermissoes('relatorios.ler')
   clientes(@Query('rotaId') rotaId?: string) { return this.rel.clientes(rotaId || undefined); }
 

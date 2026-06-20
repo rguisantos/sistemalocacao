@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { TiposProdutoController, TamanhosController, CondicoesController } from './auxiliares.controllers';
-import { TiposProdutoService, TamanhosService, CondicoesService } from './auxiliares.services';
+import { TiposProdutoController, TamanhosController, CondicoesController, CoresController } from './auxiliares.controllers';
+import { TiposProdutoService, TamanhosService, CondicoesService, CoresService } from './auxiliares.services';
 
 @Module({
-  controllers: [TiposProdutoController, TamanhosController, CondicoesController],
-  providers: [TiposProdutoService, TamanhosService, CondicoesService],
+  controllers: [TiposProdutoController, TamanhosController, CondicoesController, CoresController],
+  providers: [TiposProdutoService, TamanhosService, CondicoesService, CoresService],
 })
 export class AuxiliaresModule {}

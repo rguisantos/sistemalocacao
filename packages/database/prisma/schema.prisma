@@ -220,12 +220,24 @@ model Endereco {
 // ----------------------------------------------------------------------------
 // PRODUTO
 // ----------------------------------------------------------------------------
+model Cor {
+  id        String    @id @default(uuid()) @db.Uuid
+  nome      String
+  produtos  Produto[]
+  version          Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  @@index([updatedAt])
+}
 model Produto {
   id            String     @id @default(uuid()) @db.Uuid
   plaqueta      String     @unique
   tipoId        String     @db.Uuid
   tipo          TipoProduto @relation(fields: [tipoId], references: [id])
-  descricao     String?                                     // cor
+  descricao     String?                                     // cor (texto — mantido p/ sync e compatibilidade)
+  corId         String?    @db.Uuid                         // cor selecionável (cadastro auxiliar)
+  cor           Cor?       @relation(fields: [corId], references: [id])
   tamanhoId     String     @db.Uuid
   tamanho       Tamanho    @relation(fields: [tamanhoId], references: [id])
   condicaoId    String     @db.Uuid

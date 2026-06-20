@@ -1,7 +1,8 @@
-import { Body, Controller, Param, Post, Get, Query, Req } from '@nestjs/common';
+import { Body, Controller, Param, Patch, Post, Get, Query, Req } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { LocacoesService } from './locacoes.service';
 import { CriarLocacaoDto } from './dto/criar-locacao.dto';
+import { AtualizarLocacaoDto } from './dto/atualizar-locacao.dto';
 import { FinalizarLocacaoDto } from './dto/finalizar-locacao.dto';
 import { RequerPermissoes } from '../comum/decorators/permissoes.decorator';
 import { UsuarioAtual, UsuarioRequisicao } from '../comum/decorators/usuario-atual.decorator';
@@ -44,6 +45,13 @@ export class LocacoesController {
   @RequerPermissoes('cobrancas.ler')
   contexto(@Param('id') id: string) {
     return this.locacoes.contextoCobranca(id);
+  }
+
+  @Patch(':id')
+  @RequerPermissoes('locacoes.editar')
+  @ApiOperation({ summary: 'Edita parâmetros da locação (regra atual, endereço, início)' })
+  atualizar(@UsuarioAtual() u: UsuarioRequisicao, @Param('id') id: string, @Body() dto: AtualizarLocacaoDto, @Req() req: any) {
+    return this.locacoes.atualizar(u, id, dto, req.ip);
   }
 
   @Post()
